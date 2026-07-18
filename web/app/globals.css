@@ -1,0 +1,354 @@
+@import "tailwindcss";
+
+/* ===========================================================================
+   BrainStack global design system — single source of truth.
+
+   Two layers:
+     1. PRIMITIVES (:root)  — raw color ramps & tones. ⭐ REBRAND HERE.
+     2. SEMANTIC (@theme)   — role-named tokens components consume.
+   Components must ONLY use semantic utilities (bg-canvas, text-muted,
+   bg-accent, border-border, …) — never raw hex, never primitive names.
+
+   The Appearance settings page overrides the PRIMITIVES on :root at runtime,
+   which restyles the entire product live. See lib/theme.ts.
+   =========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  /* ========================================================= */
+  /*  REBRAND HERE — swap these ramps and the product restyles  */
+  /* ========================================================= */
+
+  /* --- Accent ramp (primitive). Default: refined indigo. --- */
+  --accent-50: #eef0ff;
+  --accent-100: #e0e3ff;
+  --accent-200: #c6ccff;
+  --accent-300: #a3abff;
+  --accent-400: #7f86f8;
+  --accent-500: #5b60e8;
+  --accent-600: #4f46e5; /* the primary accent — buttons, links, active */
+  --accent-700: #4338ca;
+  --accent-800: #3730a3;
+  --accent-900: #312e81;
+
+  /* --- Canvas / surface tones (the dynamic "canvas" ask) --- */
+  --tone-canvas: #faf9f7; /* app + sidebar background            */
+  --tone-surface: #ffffff; /* cards / content surface             */
+  --tone-raised: #f4f2ee; /* subtle secondary surface / hovers   */
+
+  /* --- Ink (text) --- */
+  --ink-900: #1b1b1a; /* strong text, solid buttons, active nav */
+  --ink-800: #2e2d2a; /* hover on strong                        */
+  --ink-500: #6b6862; /* secondary text                         */
+  --ink-400: #9a958c; /* tertiary text / placeholders           */
+
+  /* --- Lines --- */
+  --line-soft: #e6e2d9; /* borders / dividers          */
+  --line-strong: #d3cec2; /* stronger dividers / inputs  */
+
+  /* --- Status --- */
+  --ok-500: #16a34a;
+  --warn-500: #d97706;
+  --err-500: #dc2626;
+  --info-500: #2563eb;
+}
+
+@theme inline {
+  /* ========================================================= */
+  /*  SEMANTIC LAYER — components consume ONLY these tokens     */
+  /* ========================================================= */
+
+  /* Surfaces */
+  --color-canvas: var(--tone-canvas);
+  --color-surface: var(--tone-surface);
+  --color-surface-raised: var(--tone-raised);
+
+  /* Text & solids */
+  --color-primary: var(--ink-900);
+  --color-primary-hover: var(--ink-800);
+  --color-foreground: var(--ink-900);
+  --color-muted: var(--ink-500);
+  --color-subtle: var(--ink-400);
+  --color-on-accent: #ffffff;
+  --color-on-primary: #ffffff;
+
+  /* Lines */
+  --color-border: var(--line-soft);
+  --color-border-strong: var(--line-strong);
+
+  /* Accent (role) + its intensity ramp for tints/gradients */
+  --color-accent: var(--accent-600);
+  --color-accent-hover: var(--accent-700);
+  --color-accent-soft: var(--accent-50);
+  --color-accent-50: var(--accent-50);
+  --color-accent-100: var(--accent-100);
+  --color-accent-200: var(--accent-200);
+  --color-accent-300: var(--accent-300);
+  --color-accent-400: var(--accent-400);
+  --color-accent-500: var(--accent-500);
+  --color-accent-600: var(--accent-600);
+  --color-accent-700: var(--accent-700);
+  --color-accent-800: var(--accent-800);
+  --color-accent-900: var(--accent-900);
+
+  /* Status */
+  --color-success: var(--ok-500);
+  --color-warning: var(--warn-500);
+  --color-danger: var(--err-500);
+  --color-info: var(--info-500);
+
+  /* Radius (explicit so the scale is visibly part of the system) */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem; /* controls / inputs   */
+  --radius-xl: 0.75rem; /* icon tiles          */
+  --radius-2xl: 1rem; /* cards               */
+  --radius-3xl: 1.5rem;
+
+  /* Shadows — soft, ink-tinted */
+  --shadow-xs: 0 1px 2px rgb(27 27 26 / 0.05);
+  --shadow-sm: 0 1px 3px rgb(27 27 26 / 0.07), 0 1px 2px rgb(27 27 26 / 0.04);
+  --shadow-md: 0 4px 16px rgb(27 27 26 / 0.07);
+  --shadow-lg: 0 12px 32px rgb(27 27 26 / 0.1);
+  --shadow-xl: 0 20px 48px rgb(27 27 26 / 0.14);
+
+  /* Type */
+  --font-sans:
+    var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, sans-serif;
+  --font-mono:
+    var(--font-jbmono), ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background-color: var(--tone-surface);
+  color: var(--ink-900);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background-color: color-mix(in srgb, var(--accent-200) 55%, transparent);
+}
+
+/* ---------------------------------------------------------------------------
+   Thin, modern scrollbar — a translucent ink pill on invisible tracks.
+   --------------------------------------------------------------------------- */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--ink-900) 22%, transparent)
+    transparent;
+}
+*::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: color-mix(in srgb, var(--ink-900) 20%, transparent);
+  border-radius: 9999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in srgb, var(--ink-900) 36%, transparent);
+}
+
+/* ---------------------------------------------------------------------------
+   Motion — subtle entrances + ambient loops. Stagger with an inline
+   `style={{ animationDelay }}`. Every one is neutralised under
+   prefers-reduced-motion.
+   --------------------------------------------------------------------------- */
+@keyframes bs-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes bs-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes bs-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes bs-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+@keyframes bs-grow-x {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+@keyframes bs-pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+@keyframes bs-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.bs-fade-up {
+  animation: bs-fade-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.bs-fade-in {
+  animation: bs-fade-in 0.7s ease-out both;
+}
+.bs-scale-in {
+  animation: bs-scale-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.bs-float {
+  animation: bs-float 6s ease-in-out infinite;
+}
+.bs-grow-x {
+  transform-origin: left center;
+  animation: bs-grow-x 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.bs-pulse-soft {
+  animation: bs-pulse-soft 2.2s ease-in-out infinite;
+}
+.bs-shimmer {
+  background: linear-gradient(
+    100deg,
+    var(--tone-raised) 40%,
+    color-mix(in srgb, var(--tone-raised) 40%, #ffffff) 50%,
+    var(--tone-raised) 60%
+  );
+  background-size: 200% 100%;
+  animation: bs-shimmer 1.8s linear infinite;
+}
+
+/* ---------------------------------------------------------------------------
+   Toasts (bottom-right). Enter slides in from the right with a soft
+   overshoot; leave slides back out while collapsing the row. The thin bar
+   counts down to auto-dismiss.
+   --------------------------------------------------------------------------- */
+@keyframes bs-toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(115%) scale(0.96);
+  }
+  60% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+@keyframes bs-toast-out {
+  from {
+    opacity: 1;
+    max-height: 8rem;
+    margin-top: 0.625rem;
+    transform: translateX(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    max-height: 0;
+    margin-top: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    transform: translateX(115%) scale(0.96);
+  }
+}
+@keyframes bs-toast-bar {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+.bs-toast-in {
+  animation: bs-toast-in 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.bs-toast-out {
+  animation: bs-toast-out 0.34s cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+.bs-toast-bar {
+  transform-origin: left center;
+  animation: bs-toast-bar 4500ms linear forwards;
+}
+
+/* A faint dot grid — quiet backdrop for auth / hero / 404 surfaces. */
+.bs-dotgrid {
+  background-image: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--ink-400) 45%, transparent) 1px,
+    transparent 1px
+  );
+  background-size: 22px 22px;
+}
+
+/* Dimmed, non-interactive preview behind Coming Soon pages. */
+.bs-preview {
+  pointer-events: none;
+  user-select: none;
+  opacity: 0.6;
+  filter: grayscale(0.35);
+  mask-image: linear-gradient(to bottom, black 30%, transparent 96%);
+  -webkit-mask-image: linear-gradient(to bottom, black 30%, transparent 96%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bs-fade-up,
+  .bs-fade-in,
+  .bs-scale-in,
+  .bs-float,
+  .bs-grow-x,
+  .bs-pulse-soft,
+  .bs-shimmer,
+  .bs-toast-in,
+  .bs-toast-out,
+  .bs-toast-bar {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

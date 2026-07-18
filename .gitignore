@@ -1,0 +1,8 @@
+# Secrets — never commit real keys. Templates (.env.example) ARE committed.
+.env
+.env.local
+.env.*.local
+
+# OS noise
+.DS_Store
+Thumbs.db
