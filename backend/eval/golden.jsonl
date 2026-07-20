@@ -1,0 +1,22 @@
+{"id": 1, "question": "How many days of paid annual leave do employees get per year?", "expected_keywords": ["25"], "expect_refusal": false}
+{"id": 2, "question": "Does unused annual leave roll over to the next year?", "expected_keywords": ["not roll over", "does not roll"], "expect_refusal": false}
+{"id": 3, "question": "How far in advance should leave be requested?", "expected_keywords": ["two weeks"], "expect_refusal": false}
+{"id": 4, "question": "What is the policy on sick leave?", "expected_keywords": ["uncapped", "untracked"], "expect_refusal": false}
+{"id": 5, "question": "When can an employee take an unpaid sabbatical?", "expected_keywords": ["four years", "three months"], "expect_refusal": false}
+{"id": 6, "question": "Within how many days can clients return a deliverable for a full refund?", "expected_keywords": ["30 days"], "expect_refusal": false}
+{"id": 7, "question": "What does the client get if they want to return work after the 30-day window?", "expected_keywords": ["credit"], "expect_refusal": false}
+{"id": 8, "question": "Who approves client return requests, and who handles disputes?", "expected_keywords": ["account lead", "director"], "expect_refusal": false}
+{"id": 9, "question": "What is the deadline for submitting expenses?", "expected_keywords": ["45 days"], "expect_refusal": false}
+{"id": 10, "question": "Above what amount do expense claims require a receipt?", "expected_keywords": ["500"], "expect_refusal": false}
+{"id": 11, "question": "Can my manager approve a software subscription of 1500 rupees per month?", "expected_keywords": ["2000", "manager"], "expect_refusal": false}
+{"id": 12, "question": "What should I do if my laptop is stolen?", "expected_keywords": ["same day", "director"], "expect_refusal": false}
+{"id": 13, "question": "Is two-factor authentication optional?", "expected_keywords": ["mandatory"], "expect_refusal": false}
+{"id": 14, "question": "How long does probation last?", "expected_keywords": ["90 days"], "expect_refusal": false}
+{"id": 15, "question": "What are the studio's core working hours?", "expected_keywords": ["11", "16"], "expect_refusal": false}
+{"id": 16, "question": "What is the default hybrid working pattern?", "expected_keywords": ["two days", "three days"], "expect_refusal": false}
+{"id": 17, "question": "When are salaries reviewed?", "expected_keywords": ["April", "once a year"], "expect_refusal": false}
+{"id": 18, "question": "Is there an individual performance bonus?", "expected_keywords": ["no individual", "profit share"], "expect_refusal": false}
+{"id": 19, "question": "How quickly must a blocking client issue be acknowledged?", "expected_keywords": ["2 hours"], "expect_refusal": false}
+{"id": 20, "question": "Who owns work produced for a client?", "expected_keywords": ["client", "final payment"], "expect_refusal": false}
+{"id": 21, "question": "What is the studio's policy on cryptocurrency payments?", "expected_keywords": [], "expect_refusal": true}
+{"id": 22, "question": "How many floors does the studio's office building have?", "expected_keywords": [], "expect_refusal": true}

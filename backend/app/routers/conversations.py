@@ -27,7 +27,7 @@ from app import db as app_db
 from app.config import get_settings
 from app.core.deps import CurrentUser, get_current_user
 from app.db import get_db
-from app.models import Conversation, Message
+from app.models import Conversation, Message, QueryTrace
 from app.schemas.chat import (
     AskRequest,
     ConversationDetail,
@@ -175,6 +175,20 @@ def _sse(event: str, data: object) -> str:
     return f"event: {event}\ndata: {json.dumps(data)}\n\n"
 
 
+def _write_trace(**fields) -> None:
+    """One query_traces row per ask (Phase 9) — its own session, because the
+    error path runs after a rollback. Observability must never break answering."""
+    try:
+        session = app_db.SessionLocal()
+        try:
+            session.add(QueryTrace(**fields))
+            session.commit()
+        finally:
+            session.close()
+    except Exception:
+        log.warning("query trace write failed", exc_info=True)
+
+
 @router.post("/{conversation_id}/messages")
 def ask(
     conversation_id: uuid.UUID,
@@ -206,6 +220,8 @@ def ask(
         # Own session: the request session's lifecycle ends under us while
         # the response is still streaming.
         session = app_db.SessionLocal()
+        t_start = time.perf_counter()  # before ANY failable step: the error
+        # trace path below reads it
         try:
             if not get_settings().ANTHROPIC_API_KEY:
                 raise chat.ChatNotConfigured(
@@ -230,7 +246,8 @@ def ask(
             sources: list[dict] = []
             trace: list[dict] = []
             draft_started = None
-            t_start = time.perf_counter()
+            first_token_at = None
+            in_tokens = out_tokens = 0  # approximate — summed per model call
 
             for mode, payload in agent.get_graph().stream(
                 state, stream_mode=["messages", "custom"]
@@ -252,8 +269,17 @@ def ask(
                     chunk, meta = payload
                     if meta.get("langgraph_node") != "agent":
                         continue
+                    um = getattr(chunk, "usage_metadata", None) or {}
+                    if um.get("input_tokens"):
+                        in_tokens += um["input_tokens"]
+                    if (getattr(chunk, "response_metadata", None) or {}).get(
+                        "stop_reason"
+                    ):
+                        out_tokens += um.get("output_tokens", 0)
                     text = agent.chunk_text(chunk)
                     if text:
+                        if first_token_at is None:
+                            first_token_at = time.perf_counter()
                         if draft_started is None:
                             draft_started = time.perf_counter()
                         answer_parts.append(text)
@@ -278,8 +304,30 @@ def ask(
             ids = _persist(session, question, answer, sources, trace)
             yield _sse("done", {**ids, "trace": trace})
 
-            # Phase 8 housekeeping AFTER the user has their answer — each call
-            # swallows its own failures and costs the user nothing.
+            # Phase 9 observability + Phase 8 housekeeping AFTER the user has
+            # their answer — each swallows its own failures.
+            settings = get_settings()
+            cost = (
+                in_tokens * settings.PRICE_INPUT_PER_MTOK
+                + out_tokens * settings.PRICE_OUTPUT_PER_MTOK
+            ) / 1_000_000
+            _write_trace(
+                tenant_id=tenant_id,
+                user_id=user_id,
+                conversation_id=convo_id,
+                question=question,
+                status="ok",
+                latency_ms=round((time.perf_counter() - t_start) * 1000),
+                first_token_ms=(
+                    round((first_token_at - t_start) * 1000) if first_token_at else None
+                ),
+                tool_kinds=",".join(dict.fromkeys(t["kind"] for t in trace)),
+                source_count=len(sources),
+                input_tokens=in_tokens or None,
+                output_tokens=out_tokens or None,
+                cost_usd=round(cost, 6) if (in_tokens or out_tokens) else None,
+                model=settings.LLM_MODEL_AGENT,
+            )
             memory.extract_and_store(
                 session, tenant_id, user_id, convo_id, question, answer
             )
@@ -290,6 +338,15 @@ def ask(
         except Exception:
             log.exception("ask stream failed for conversation %s", convo_id)
             session.rollback()
+            _write_trace(
+                tenant_id=tenant_id,
+                user_id=user_id,
+                conversation_id=convo_id,
+                question=question,
+                status="error",
+                latency_ms=round((time.perf_counter() - t_start) * 1000),
+                model=get_settings().LLM_MODEL_AGENT,
+            )
             yield _sse(
                 "error",
                 {"detail": "The answer failed partway. Nothing was saved — try again."},

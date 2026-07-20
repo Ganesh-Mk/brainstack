@@ -15,3 +15,14 @@ export function ManagersOnly({ what }: { what: string }) {
     />
   );
 }
+
+/** Admin-gated insights pages (Analytics / Evaluation / Observability). */
+export function AdminsOnly({ what }: { what: string }) {
+  return (
+    <EmptyState
+      icon={ShieldCheck}
+      title="Admins only"
+      description={`${what} covers the whole workspace — cost, latency and quality across every user — so it's visible to admin accounts only.`}
+    />
+  );
+}

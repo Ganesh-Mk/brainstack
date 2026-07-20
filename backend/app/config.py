@@ -68,6 +68,11 @@ class Settings(BaseSettings):
     # Reflection (Phase 8) — 2 attempts max, 2nd draft ships regardless
     REFLECTION_ENABLED: bool = True
 
+    # Observability (Phase 9) — cost attribution for query_traces.
+    # claude-haiku-4-5 list prices per million tokens.
+    PRICE_INPUT_PER_MTOK: float = 1.0
+    PRICE_OUTPUT_PER_MTOK: float = 5.0
+
     # The agent (LangGraph)
     TAVILY_API_KEY: str = ""
     LLM_MODEL_AGENT: str = "claude-haiku-4-5"  # env-swap up for demos

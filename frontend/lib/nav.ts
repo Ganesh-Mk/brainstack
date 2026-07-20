@@ -76,8 +76,7 @@ export const APP_NAV: NavItem[] = [
     href: "/dashboard",
     icon: LayoutDashboard,
     group: "Workspace",
-    locked: true,
-    unlocksIn: "Backend Phase 7 · Evaluation & observability",
+    locked: false,
     blurb:
       "Workspace at a glance — questions asked, documents indexed, quality scores and spend.",
   },
@@ -180,9 +179,8 @@ export const APP_NAV: NavItem[] = [
     href: "/analytics",
     icon: ChartLine,
     group: "Insights",
-    locked: true,
+    locked: false,
     roles: ["admin"],
-    unlocksIn: "Backend Phase 7 · Evaluation & observability",
     blurb:
       "LLMOps for your workspace — cost per day, latency percentiles, token usage and quality over time.",
   },
@@ -191,9 +189,8 @@ export const APP_NAV: NavItem[] = [
     href: "/evaluation",
     icon: ClipboardCheck,
     group: "Insights",
-    locked: true,
+    locked: false,
     roles: ["admin"],
-    unlocksIn: "Backend Phase 7 · Evaluation & observability",
     blurb:
       "Proof the answers are good — golden dataset runs, faithfulness and retrieval-relevance scores.",
   },
@@ -202,9 +199,8 @@ export const APP_NAV: NavItem[] = [
     href: "/observability",
     icon: Activity,
     group: "Insights",
-    locked: true,
+    locked: false,
     roles: ["admin"],
-    unlocksIn: "Backend Phase 7 · Evaluation & observability",
     blurb:
       "Per-request traces — what was retrieved, which tools were called, how long and how much.",
   },

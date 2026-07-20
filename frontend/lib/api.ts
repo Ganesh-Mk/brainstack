@@ -89,6 +89,89 @@ export type ApiMemory = {
   created_at: string;
 };
 
+// ── Stats (Phase 9 · evaluation & observability) ───────────────────────────
+
+export type ApiToolUsage = {
+  knowledge: number;
+  web: number;
+  action: number;
+  reflection: number;
+};
+
+export type ApiDashboardStats = {
+  documents: number;
+  documents_ready: number;
+  chunks: number;
+  conversations: number;
+  memories: number;
+  questions_asked: number;
+  avg_latency_ms: number | null;
+  cost_usd_30d: number;
+  tool_usage: ApiToolUsage;
+};
+
+export type ApiAnalytics = {
+  window_days: number;
+  totals: {
+    questions: number;
+    errors: number;
+    cost_usd: number;
+    input_tokens: number;
+    output_tokens: number;
+  };
+  latency_ms: { p50: number | null; p95: number | null };
+  first_token_ms: { p50: number | null; p95: number | null };
+  per_day: {
+    date: string;
+    questions: number;
+    errors: number;
+    cost_usd: number;
+    avg_latency_ms: number | null;
+  }[];
+  tool_usage: ApiToolUsage;
+  top_questions: { question: string; count: number }[];
+};
+
+export type ApiQueryTrace = {
+  id: string;
+  question: string;
+  status: "ok" | "error";
+  latency_ms: number;
+  first_token_ms: number | null;
+  tool_kinds: string[];
+  source_count: number;
+  input_tokens: number | null;
+  output_tokens: number | null;
+  cost_usd: number | null;
+  model: string;
+  created_at: string | null;
+};
+
+export type ApiEvalRun = {
+  id: string;
+  dataset_size: number;
+  faithfulness: number;
+  relevance: number;
+  retrieval_hit: number;
+  citation_validity: number;
+  model: string;
+  notes: string | null;
+  per_question:
+    | {
+        id: number;
+        question: string;
+        answer: string;
+        refused: boolean;
+        expect_refusal: boolean;
+        faithfulness: number;
+        relevance: number;
+        retrieval_hit: boolean;
+        citation_valid: boolean;
+      }[]
+    | null;
+  created_at: string | null;
+};
+
 // ── Company systems (Phase 7 · MCP + RBAC) ─────────────────────────────────
 
 export type ApiConnections = {
@@ -299,6 +382,20 @@ export const api = {
 
   companyAnalytics: (token: string) =>
     request<{ analytics: ApiWorkforceRow[] }>("/company/analytics", { token }),
+
+  // ── Stats (Phase 9) ──────────────────────────────────────────────────────
+
+  statsDashboard: (token: string) =>
+    request<ApiDashboardStats>("/stats/dashboard", { token }),
+
+  statsAnalytics: (token: string) =>
+    request<ApiAnalytics>("/stats/analytics", { token }),
+
+  statsTraces: (token: string) =>
+    request<{ traces: ApiQueryTrace[] }>("/stats/traces", { token }),
+
+  statsEvals: (token: string) =>
+    request<{ runs: ApiEvalRun[] }>("/stats/evals", { token }),
 };
 
 export type AskHandlers = {
