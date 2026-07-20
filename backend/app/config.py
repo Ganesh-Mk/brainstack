@@ -39,6 +39,14 @@ class Settings(BaseSettings):
     SUPABASE_SECRET_KEY: str = ""
     STORAGE_BUCKET: str = "documents"
 
+    # Chat / grounded Q&A
+    ANTHROPIC_API_KEY: str = ""
+    LLM_MODEL_DEV: str = "claude-haiku-4-5"  # cheap-in-dev per the guide
+    CHAT_MAX_TOKENS: int = 1024
+    CHAT_TOP_K: int = 6
+    CHAT_HISTORY_TURNS: int = 6  # prior messages included in the prompt
+    CHAT_MAX_QUESTION_CHARS: int = 4000
+
     # Ingestion pipeline
     # fastembed runs the same all-MiniLM-L6-v2 the lab used (384-dim, matches
     # the Pinecone index) but on ONNX — no PyTorch, fits the Render free tier.

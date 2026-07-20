@@ -20,5 +20,8 @@ trafilatura==2.1.0
 langchain-text-splitters==1.1.2
 fastembed==0.8.0
 
+# grounded Q&A (Phase 5)
+anthropic==0.117.0
+
 # tests
 pytest==9.1.1

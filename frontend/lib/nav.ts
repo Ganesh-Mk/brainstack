@@ -87,8 +87,7 @@ export const APP_NAV: NavItem[] = [
     href: "/ask",
     icon: MessageSquare,
     group: "Workspace",
-    locked: true,
-    unlocksIn: "Backend Phase 3 · Grounded Q&A + streaming",
+    locked: false,
     blurb:
       "Ask any question and get a grounded, cited answer from your company's knowledge — with a live view of the agent's reasoning.",
   },

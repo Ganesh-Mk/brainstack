@@ -70,6 +70,41 @@ def get_document(
     return _get_owned(document_id, current, db)
 
 
+@router.get("/{document_id}/file")
+def get_document_file(
+    document_id: uuid.UUID,
+    current: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """The stored original PDF — what the citation viewer opens at a page.
+    Readable by every role (viewing sources is part of reading answers)."""
+    from fastapi import Response
+
+    doc = _get_owned(document_id, current, db)
+    if doc.source_type != "pdf" or not doc.file_path:
+        raise HTTPException(
+            status_code=404, detail="This source has no stored file."
+        )
+    try:
+        data = storage.download(doc.file_path)
+    except storage.StorageError:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="File storage is unavailable. Try again shortly.",
+        )
+    safe_name = "".join(
+        ch for ch in doc.title if ch.isalnum() or ch in " ._-"
+    ).strip() or "document"
+    return Response(
+        content=data,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'inline; filename="{safe_name}.pdf"',
+            "Cache-Control": "private, max-age=300",
+        },
+    )
+
+
 @router.post("", response_model=DocumentOut, status_code=status.HTTP_202_ACCEPTED)
 async def upload_document(
     file: UploadFile,

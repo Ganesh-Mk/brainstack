@@ -56,6 +56,35 @@ export function isProcessing(status: DocumentStatus): boolean {
   return status !== "ready" && status !== "failed";
 }
 
+export type ApiSource = {
+  n: number;
+  document_id: string;
+  title: string;
+  page: number;
+  text: string;
+  score: number;
+};
+
+export type ApiMessage = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  sources: ApiSource[] | null;
+  created_at: string;
+};
+
+export type ApiConversation = {
+  id: string;
+  title: string;
+  question_count: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ApiConversationDetail = ApiConversation & {
+  messages: ApiMessage[];
+};
+
 export class ApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
@@ -162,4 +191,107 @@ export const api = {
 
   deleteDocument: (token: string, id: string) =>
     request<void>(`/documents/${id}`, { method: "DELETE", token }),
+
+  /** The stored PDF as a blob (auth'd) — for the citation viewer. */
+  fetchDocumentFile: async (token: string, id: string): Promise<Blob> => {
+    const res = await fetch(`${API_URL}/documents/${id}/file`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new ApiError(res.status, "Couldn't load the document.");
+    return res.blob();
+  },
+
+  // ── Conversations / grounded Q&A ─────────────────────────────────────────
+
+  listConversations: (token: string) =>
+    request<ApiConversation[]>("/conversations", { token }),
+
+  createConversation: (token: string) =>
+    request<ApiConversation>("/conversations", { method: "POST", token }),
+
+  getConversation: (token: string, id: string) =>
+    request<ApiConversationDetail>(`/conversations/${id}`, { token }),
+
+  deleteConversation: (token: string, id: string) =>
+    request<void>(`/conversations/${id}`, { method: "DELETE", token }),
 };
+
+export type AskHandlers = {
+  onSources: (sources: ApiSource[]) => void;
+  onDelta: (text: string) => void;
+  onDone: (ids: { user_message_id: string; assistant_message_id: string }) => void;
+  onError: (message: string) => void;
+};
+
+/**
+ * Stream a grounded answer over SSE. Uses fetch + ReadableStream because
+ * EventSource can't send the Authorization header. Event order from the
+ * backend: `sources` (before any token) → `delta`* → `done` | `error`.
+ */
+export async function streamAsk(
+  token: string,
+  conversationId: string,
+  content: string,
+  handlers: AskHandlers,
+): Promise<void> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/conversations/${conversationId}/messages`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+        Accept: "text/event-stream",
+      },
+      body: JSON.stringify({ content }),
+    });
+  } catch {
+    handlers.onError("Can't reach the server. Is the backend running?");
+    return;
+  }
+
+  if (!res.ok || !res.body) {
+    let detail = `Request failed (${res.status})`;
+    try {
+      const data = await res.json();
+      if (typeof data?.detail === "string") detail = data.detail;
+    } catch {
+      /* keep default */
+    }
+    handlers.onError(detail);
+    return;
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  const dispatch = (frame: string) => {
+    let event = "";
+    let data = "";
+    for (const line of frame.split("\n")) {
+      if (line.startsWith("event: ")) event = line.slice(7).trim();
+      else if (line.startsWith("data: ")) data += line.slice(6);
+    }
+    if (!event || !data) return;
+    try {
+      const parsed = JSON.parse(data);
+      if (event === "sources") handlers.onSources(parsed);
+      else if (event === "delta") handlers.onDelta(parsed.text);
+      else if (event === "done") handlers.onDone(parsed);
+      else if (event === "error") handlers.onError(parsed.detail);
+    } catch {
+      /* skip malformed frame */
+    }
+  };
+
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const frames = buffer.split("\n\n");
+    buffer = frames.pop() ?? "";
+    frames.forEach(dispatch);
+  }
+  if (buffer.trim()) dispatch(buffer);
+}

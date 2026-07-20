@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { KpiTile } from "@/components/ui/KpiTile";
 import { DocsIndexedTile } from "@/components/knowledge/DocsIndexedTile";
+import { QuestionsAskedTile } from "@/components/ask/QuestionsAskedTile";
 import { LockBadge } from "@/components/patterns/LockBadge";
 import { PageHeader } from "@/components/patterns/PageHeader";
 
@@ -98,13 +99,7 @@ export default function DashboardPage() {
 
       {/* KPI row */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiTile
-          label="Questions asked"
-          value="1,284"
-          delta="+12% this week"
-          deltaTone="up"
-          icon={MessageSquare}
-        />
+        <QuestionsAskedTile />
         <DocsIndexedTile />
         <KpiTile
           label="Avg faithfulness"
