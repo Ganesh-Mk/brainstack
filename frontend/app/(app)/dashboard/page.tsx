@@ -4,12 +4,12 @@ import {
   DollarSign,
   FileText,
   LayoutDashboard,
-  Map,
   MessageSquare,
   ShieldCheck,
   Sparkles,
   TrendingUp,
   Upload,
+  Workflow,
 } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
@@ -59,20 +59,20 @@ const QUICK_ACTIONS = [
     icon: MessageSquare,
     title: "Ask BrainStack",
     description: "Grounded, cited answers from your knowledge.",
-    locked: true,
+    locked: false,
   },
   {
     href: "/knowledge/add",
     icon: Upload,
     title: "Add sources",
     description: "Upload PDFs, docs, or paste URLs.",
-    locked: true,
+    locked: false,
   },
   {
-    href: "/roadmap",
-    icon: Map,
-    title: "See the roadmap",
-    description: "What's live and what unlocks next.",
+    href: "/knowledge/ingestion",
+    icon: Workflow,
+    title: "Watch the pipeline",
+    description: "See documents index in real time.",
     locked: false,
   },
 ];

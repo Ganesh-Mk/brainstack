@@ -2,8 +2,8 @@
  * ⭐ The single source of truth for the product's information architecture.
  *
  * Every app route declares its label, icon, lock state, RBAC visibility and
- * (if locked) which backend phase unlocks it. The Sidebar, Command Palette,
- * Roadmap page and breadcrumbs all render from this registry — unlocking a
+ * (if locked) which backend phase unlocks it. The Sidebar, Command Palette
+ * and breadcrumbs all render from this registry — unlocking a
  * feature later means flipping `locked: false` HERE and replacing its page's
  * <ComingSoon> with the real screen. Nothing else moves.
  */
@@ -21,7 +21,6 @@ import {
   KeyRound,
   LayoutDashboard,
   Library,
-  Map,
   MessageSquare,
   Palette,
   Settings,
@@ -90,15 +89,6 @@ export const APP_NAV: NavItem[] = [
     locked: false,
     blurb:
       "Ask any question and get a grounded, cited answer from your company's knowledge — with a live view of the agent's reasoning.",
-  },
-  {
-    label: "Roadmap",
-    href: "/roadmap",
-    icon: Map,
-    group: "Workspace",
-    locked: false,
-    blurb:
-      "What's live, what's next — the staged rollout of every BrainStack capability.",
   },
 
   // ── Knowledge ──────────────────────────────────────────────────────────
@@ -340,7 +330,13 @@ export function roleAllows(item: { roles?: Role[] }, role: Role): boolean {
 /** Active-state matcher: exact or a sub-path (settings matches any tab). */
 export function isNavActive(pathname: string, href: string): boolean {
   if (href.startsWith("/settings")) return pathname.startsWith("/settings");
-  return pathname === href || pathname.startsWith(`${href}/`);
+  const matches = (h: string) => pathname === h || pathname.startsWith(`${h}/`);
+  if (!matches(href)) return false;
+  // Longest-match wins: /knowledge must NOT light up on /knowledge/add,
+  // because the more specific "Add Sources" entry claims that path.
+  return !APP_NAV.some(
+    (item) => item.href.length > href.length && matches(item.href),
+  );
 }
 
 /** Find the registry entry for a pathname (used by breadcrumbs / palette). */

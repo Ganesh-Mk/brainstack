@@ -63,6 +63,9 @@ export type ApiSource = {
   page: number;
   text: string;
   score: number;
+  /** Absent on messages persisted before these fields existed → treat as pdf. */
+  source_type?: "pdf" | "url" | "text";
+  source_url?: string | null;
 };
 
 export type ApiMessage = {
@@ -197,7 +200,16 @@ export const api = {
     const res = await fetch(`${API_URL}/documents/${id}/file`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (!res.ok) throw new ApiError(res.status, "Couldn't load the document.");
+    if (!res.ok) {
+      let detail = "Couldn't load the document.";
+      try {
+        const data = await res.json();
+        if (typeof data?.detail === "string") detail = data.detail;
+      } catch {
+        /* keep default */
+      }
+      throw new ApiError(res.status, detail);
+    }
     return res.blob();
   },
 

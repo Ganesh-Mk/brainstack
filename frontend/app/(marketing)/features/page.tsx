@@ -165,14 +165,14 @@ export default function FeaturesPage() {
         </h2>
         <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted">
           The full product surface is live today — walk through every screen
-          and watch the rollout on the roadmap.
+          and see how your company&apos;s knowledge becomes answers.
         </p>
         <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
           <ButtonLink href="/signup" variant="accent">
             Start free
           </ButtonLink>
-          <ButtonLink href="/roadmap" variant="outline">
-            View the roadmap
+          <ButtonLink href="/security" variant="outline">
+            How we protect your data
           </ButtonLink>
         </div>
       </div>

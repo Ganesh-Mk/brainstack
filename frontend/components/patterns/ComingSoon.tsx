@@ -1,9 +1,8 @@
 import type { ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
-import { CircleCheck, Clock, Map } from "lucide-react";
+import { CircleCheck, Clock } from "lucide-react";
 import { APP_NAV, SETTINGS_TABS } from "@/lib/nav";
 import { Badge } from "@/components/ui/Badge";
-import { ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { LockBadge } from "@/components/patterns/LockBadge";
 import { NotifyButton } from "@/components/patterns/NotifyButton";
@@ -108,10 +107,6 @@ export function ComingSoon({
 
       <div className="mt-6 flex flex-wrap items-center gap-3">
         <NotifyButton feature={title} />
-        <ButtonLink href="/roadmap" variant="outline">
-          <Map className="h-4 w-4" />
-          See the roadmap
-        </ButtonLink>
       </div>
 
       {preview && <PagePreview>{preview}</PagePreview>}

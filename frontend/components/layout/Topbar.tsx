@@ -141,7 +141,7 @@ export function Topbar() {
 
       <Tooltip label="Help & docs">
         <Link
-          href="/roadmap"
+          href="/docs"
           aria-label="Help"
           className="rounded-lg p-2 text-muted transition hover:bg-surface-raised hover:text-primary"
         >

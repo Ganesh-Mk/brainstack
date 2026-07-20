@@ -507,7 +507,20 @@ export function AskView() {
                   <span className="min-w-0 flex-1 truncate text-xs font-medium text-primary">
                     {s.title}
                   </span>
-                  {s.document_id !== "demo" && (
+                  {s.document_id === "demo" ? (
+                    <span className="text-[10px] text-subtle">p.{s.page}</span>
+                  ) : s.source_type === "url" && s.source_url ? (
+                    // Web sources have no stored file — open the original page.
+                    <a
+                      href={s.source_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium text-accent transition hover:bg-accent-soft"
+                    >
+                      Open page
+                      <ExternalLink className="h-2.5 w-2.5" />
+                    </a>
+                  ) : (
                     <button
                       type="button"
                       onClick={() =>
@@ -518,9 +531,6 @@ export function AskView() {
                       p.{s.page}
                       <ExternalLink className="h-2.5 w-2.5" />
                     </button>
-                  )}
-                  {s.document_id === "demo" && (
-                    <span className="text-[10px] text-subtle">p.{s.page}</span>
                   )}
                 </div>
                 <p className="mt-2 line-clamp-5 text-xs leading-5 text-muted">

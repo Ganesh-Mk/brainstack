@@ -11,7 +11,6 @@ const COLUMNS: {
       { label: "Features", href: "/features" },
       { label: "Pricing", href: "/pricing" },
       { label: "Security", href: "/security" },
-      { label: "Roadmap", href: "/roadmap" },
     ],
   },
   {

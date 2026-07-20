@@ -72,10 +72,10 @@ export default function AboutPage() {
         <p className="mx-auto mt-2 max-w-lg text-sm leading-7 text-muted">
           BrainStack ships in deliberate, public stages — every feature has a
           place in the product from day one and switches on as its
-          infrastructure lands. You can watch it happen on the roadmap.
+          infrastructure lands.
         </p>
-        <ButtonLink href="/roadmap" variant="accent" className="mt-6">
-          See the roadmap
+        <ButtonLink href="/signup" variant="accent" className="mt-6">
+          Start free
         </ButtonLink>
       </div>
     </div>

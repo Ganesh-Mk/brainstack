@@ -22,6 +22,9 @@ class SourceOut(BaseModel):
     page: int
     text: str
     score: float
+    # Defaults tolerate messages persisted before these fields existed.
+    source_type: str = "pdf"
+    source_url: str | None = None
 
 
 class MessageOut(BaseModel):

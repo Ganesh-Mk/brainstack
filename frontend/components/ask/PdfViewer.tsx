@@ -39,7 +39,15 @@ export function PdfViewer({
         objectUrl = URL.createObjectURL(blob);
         setUrl(objectUrl);
       })
-      .catch(() => !cancelled && setError("Couldn't load the document."));
+      .catch(
+        (e) =>
+          !cancelled &&
+          setError(
+            e instanceof Error && e.message
+              ? e.message
+              : "Couldn't load the document.",
+          ),
+      );
 
     return () => {
       cancelled = true;

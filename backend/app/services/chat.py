@@ -22,7 +22,9 @@ from app.services import embeddings, vectorstore
 
 @dataclass
 class Source:
-    """One retrieved passage, numbered for citation."""
+    """One retrieved passage, numbered for citation. source_type decides how
+    the UI opens it: pdf -> the stored file at the cited page, url -> the
+    original web page."""
 
     n: int
     document_id: str
@@ -30,6 +32,8 @@ class Source:
     page: int
     text: str
     score: float
+    source_type: str = "pdf"
+    source_url: str | None = None
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -83,8 +87,8 @@ def retrieve(db: Session, tenant_id: uuid.UUID, question: str) -> list[Source]:
         for c in db.scalars(select(Chunk).where(Chunk.id.in_(ids)))
     }
     doc_ids = {r.document_id for r in rows.values()}
-    titles = {
-        str(d.id): d.title
+    docs = {
+        str(d.id): d
         for d in db.scalars(select(Document).where(Document.id.in_(doc_ids)))
     }
 
@@ -96,14 +100,17 @@ def retrieve(db: Session, tenant_id: uuid.UUID, question: str) -> list[Source]:
         if not text:
             continue
         document_id = str(chunk.document_id) if chunk else meta.get("document_id", "")
+        doc = docs.get(document_id)
         sources.append(
             Source(
                 n=i,
                 document_id=document_id,
-                title=titles.get(document_id, "Removed document"),
+                title=doc.title if doc else "Removed document",
                 page=chunk.page if chunk else int(meta.get("page", 1)),
                 text=text,
                 score=round(float(m.get("score", 0.0)), 4),
+                source_type=doc.source_type if doc else "pdf",
+                source_url=doc.source_url if doc else None,
             )
         )
     # Re-number after any skips so citations are always contiguous.
