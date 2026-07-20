@@ -1,0 +1,15 @@
+# BrainStack lab — Backend Phase 1 (RAG from scratch)
+# Deliberately separate from backend/requirements.txt: sentence-transformers
+# pulls in PyTorch (hundreds of MB) and the API never runs this code, so
+# keeping it here keeps every Render deploy lean.
+
+# The naked pipeline
+pymupdf              # PDF text extraction (also used to generate the sample doc)
+sentence-transformers  # all-MiniLM-L6-v2, local + free (pulls torch)
+numpy                # vector math for the hand-written cosine similarity
+anthropic            # the answer-generation call
+python-dotenv        # read the repo-root .env
+
+# The end-of-phase framework comparison
+langchain-text-splitters  # RecursiveCharacterTextSplitter
+pinecone                  # the managed vector DB

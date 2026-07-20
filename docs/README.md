@@ -6,7 +6,8 @@
 |---|---|
 | [`PROJECT_IDEA.md`](PROJECT_IDEA.md) | The product: what BrainStack is, who it's for, the feature set. |
 | [`PROJECT_GUIDE.md`](PROJECT_GUIDE.md) | The learning + build guide: every AI concept explained, and the 8-phase backend plan (Part 3). The north star. |
-| [`PHASE_3.md`](PHASE_3.md) | **Current phase** — the plan being executed. |
+| [`PHASE_3.md`](PHASE_3.md) | **Current phase** — the plan. |
+| [`PHASE_3_COMPLETE.md`](PHASE_3_COMPLETE.md) | Phase 3 results, a full explanation of how RAG works, and the test checklist. |
 
 ## `archive/`
 
@@ -33,7 +34,7 @@ Current mapping:
 |---|---|---|
 | Phase 1 | — (frontend only) | ✅ live |
 | Phase 2 | Backend Phase 0 — Foundation | ✅ live |
-| Phase 3 | Backend Phase 1 — RAG from scratch | 🔨 planned |
+| Phase 3 | Backend Phase 1 — RAG from scratch | ✅ built (`lab/`, not deployed) |
 
 ## The live stack
 
