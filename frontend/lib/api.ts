@@ -68,11 +68,20 @@ export type ApiSource = {
   source_url?: string | null;
 };
 
+export type ApiTraceStep = {
+  n: number;
+  kind: "planning" | "knowledge" | "web" | "drafting";
+  label: string;
+  detail?: string | null;
+  ms?: number | null;
+};
+
 export type ApiMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
   sources: ApiSource[] | null;
+  trace?: ApiTraceStep[] | null;
   created_at: string;
 };
 
@@ -231,6 +240,7 @@ export const api = {
 export type AskHandlers = {
   onSources: (sources: ApiSource[]) => void;
   onDelta: (text: string) => void;
+  onTrace?: (step: ApiTraceStep) => void;
   onDone: (ids: { user_message_id: string; assistant_message_id: string }) => void;
   onError: (message: string) => void;
 };
@@ -289,6 +299,7 @@ export async function streamAsk(
     try {
       const parsed = JSON.parse(data);
       if (event === "sources") handlers.onSources(parsed);
+      else if (event === "trace") handlers.onTrace?.(parsed);
       else if (event === "delta") handlers.onDelta(parsed.text);
       else if (event === "done") handlers.onDone(parsed);
       else if (event === "error") handlers.onError(parsed.detail);

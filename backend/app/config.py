@@ -47,6 +47,12 @@ class Settings(BaseSettings):
     CHAT_HISTORY_TURNS: int = 6  # prior messages included in the prompt
     CHAT_MAX_QUESTION_CHARS: int = 4000
 
+    # The agent (LangGraph)
+    TAVILY_API_KEY: str = ""
+    LLM_MODEL_AGENT: str = "claude-haiku-4-5"  # env-swap up for demos
+    AGENT_MAX_STEPS: int = 4  # tool invocations per question — cost cap
+    WEB_SEARCH_MAX_RESULTS: int = 4
+
     # Ingestion pipeline
     # fastembed runs the same all-MiniLM-L6-v2 the lab used (384-dim, matches
     # the Pinecone index) but on ONNX — no PyTorch, fits the Render free tier.

@@ -27,11 +27,20 @@ class SourceOut(BaseModel):
     source_url: str | None = None
 
 
+class TraceStep(BaseModel):
+    n: int
+    kind: Literal["planning", "knowledge", "web", "drafting"]
+    label: str
+    detail: str | None = None
+    ms: int | None = None
+
+
 class MessageOut(BaseModel):
     id: uuid.UUID
     role: Literal["user", "assistant"]
     content: str
     sources: list[SourceOut] | None = None
+    trace: list[TraceStep] | None = None
     created_at: datetime
 
 

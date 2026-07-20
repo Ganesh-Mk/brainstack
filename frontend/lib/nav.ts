@@ -128,8 +128,7 @@ export const APP_NAV: NavItem[] = [
     href: "/agent/trace",
     icon: Sparkles,
     group: "Intelligence",
-    locked: true,
-    unlocksIn: "Backend Phase 4 · The LangGraph agent",
+    locked: false,
     blurb:
       "The agent's reasoning, step by step — planning, tool calls, latency and cost per step.",
   },

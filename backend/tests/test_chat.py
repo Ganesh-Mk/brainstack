@@ -1,8 +1,8 @@
-"""Conversations + grounded-answer stream tests.
+"""Conversations + agent-stream tests.
 
-Claude is mocked at the chat-service seam (stream_answer / retrieve), so the
-suite is hermetic; the SSE protocol, persistence rules, isolation, and the
-failure contract all run for real.
+The agent graph is mocked at the agent.get_graph seam with a scripted event
+stream, so the suite is hermetic; the SSE protocol (trace/sources/delta/done),
+persistence rules, isolation, and the failure contract all run for real.
 """
 
 from __future__ import annotations
@@ -13,6 +13,7 @@ import json
 import pytest
 
 from app.routers import conversations as convo_router
+from app.services import agent as agent_service
 from app.services import chat as chat_service
 from tests.conftest import auth_header, signup
 from tests.test_documents import MINIMAL_PDF, fakes, upload_pdf  # noqa: F401
@@ -27,6 +28,22 @@ FAKE_SOURCES = [
         score=0.61,
     )
 ]
+FAKE_SOURCE_DICTS = [s.to_dict() for s in FAKE_SOURCES]
+
+
+class FakeChunk:
+    def __init__(self, text):
+        self.content = text
+
+
+class FakeGraph:
+    """graph.stream() replacement yielding a scripted event sequence."""
+
+    def __init__(self, script):
+        self.script = script
+
+    def stream(self, state, stream_mode=None):
+        yield from self.script(state)
 
 
 def parse_sse(body: str) -> list[tuple[str, object]]:
@@ -46,20 +63,34 @@ def admin(client, fakes):  # noqa: F811 — fakes patches storage/vectors
 
 @pytest.fixture
 def mock_answer(monkeypatch):
-    """Patch retrieval + the model stream with deterministic fakes."""
-    monkeypatch.setattr(
-        chat_service, "retrieve", lambda db, tenant_id, q: list(FAKE_SOURCES)
-    )
-
+    """Patch the agent graph with a deterministic scripted run."""
     captured: dict = {}
 
-    def fake_stream(question, sources, history=()):
-        captured["question"] = question
-        captured["history"] = list(history)
-        yield "You get **25 days** of leave "
-        yield "[1]."
+    def script(state):
+        captured["state"] = state
+        captured["question"] = state["messages"][-1].content
+        captured["history"] = [
+            {"role": "user" if m.type == "human" else "assistant", "content": m.content}
+            for m in state["messages"][1:-1]
+        ]
+        yield ("custom", {"trace": {"n": 1, "kind": "planning", "label": "Planning"}})
+        yield (
+            "custom",
+            {
+                "trace": {
+                    "n": 2,
+                    "kind": "knowledge",
+                    "label": "Searching knowledge",
+                    "detail": "leave days",
+                    "ms": 120,
+                }
+            },
+        )
+        yield ("custom", {"sources": list(FAKE_SOURCE_DICTS)})
+        yield ("messages", (FakeChunk("You get **25 days** of leave "), {"langgraph_node": "agent"}))
+        yield ("messages", (FakeChunk("[1]."), {"langgraph_node": "agent"}))
 
-    monkeypatch.setattr(chat_service, "stream_answer", fake_stream)
+    monkeypatch.setattr(agent_service, "get_graph", lambda: FakeGraph(script))
     return captured
 
 
@@ -90,11 +121,15 @@ def test_full_ask_flow(client, admin, mock_answer):
 
     events = parse_sse(r.text)
     kinds = [e for e, _ in events]
-    assert kinds[0] == "sources", "sources must arrive before any token"
-    assert "delta" in kinds and kinds[-1] == "done"
+    assert kinds[0] == "trace", "the agent announces planning first"
+    assert "sources" in kinds and "delta" in kinds and kinds[-1] == "done"
+    assert kinds.index("sources") < kinds.index("delta"), "sources before tokens"
     assert kinds.count("error") == 0
 
-    sources = events[0][1]
+    trace_kinds = [d["kind"] for e, d in events if e == "trace"]
+    assert trace_kinds == ["planning", "knowledge", "drafting"]
+
+    sources = next(d for e, d in events if e == "sources")
     assert sources[0]["n"] == 1 and sources[0]["page"] == 2
 
     text = "".join(d["text"] for e, d in events if e == "delta")
@@ -106,6 +141,11 @@ def test_full_ask_flow(client, admin, mock_answer):
     ).json()
     assert [m["role"] for m in detail["messages"]] == ["user", "assistant"]
     assert detail["messages"][1]["sources"][0]["title"] == "handbook"
+    assert [t["kind"] for t in detail["messages"][1]["trace"]] == [
+        "planning",
+        "knowledge",
+        "drafting",
+    ], "the trace persists with the answer"
     assert detail["title"].startswith("How many leave days")
     assert detail["question_count"] == 1
 
@@ -120,29 +160,46 @@ def test_history_flows_into_prompt(client, admin, mock_answer):
     assert roles == ["user", "assistant"], "prior turn should be in history"
 
 
-def test_empty_library_short_circuits(client, admin, mock_answer, monkeypatch):
-    """No ready documents -> friendly reply, and the model is NEVER called."""
-    def explode(*a, **k):
-        raise AssertionError("model must not be called with an empty library")
+def test_web_sources_flow_through(client, admin, monkeypatch):
+    """A web-tool run: url-typed sources reach the client and persist."""
+    web_source = {
+        "n": 1,
+        "document_id": "",
+        "title": "Industry norms",
+        "page": 1,
+        "text": "Typical is 20 days.",
+        "score": 0.5,
+        "source_type": "web",
+        "source_url": "https://example.com/norms",
+    }
 
-    monkeypatch.setattr(chat_service, "stream_answer", explode)
+    def script(state):
+        yield ("custom", {"trace": {"n": 1, "kind": "planning", "label": "Planning"}})
+        yield ("custom", {"trace": {"n": 2, "kind": "web", "label": "Searching the web", "ms": 300}})
+        yield ("custom", {"sources": [web_source]})
+        yield ("messages", (FakeChunk("Industry norm is 20 days [1]."), {"langgraph_node": "agent"}))
+
+    monkeypatch.setattr(agent_service, "get_graph", lambda: FakeGraph(script))
     convo_id = make_convo(client, admin["access_token"])
     events = parse_sse(ask(client, admin["access_token"], convo_id).text)
-    assert events[0] == ("sources", [])
-    text = "".join(d["text"] for e, d in events if e == "delta")
-    assert "no indexed documents" in text
     assert events[-1][0] == "done"
+    detail = client.get(
+        f"/conversations/{convo_id}", headers=auth_header(admin["access_token"])
+    ).json()
+    persisted = detail["messages"][1]["sources"][0]
+    assert persisted["source_type"] == "web"
+    assert persisted["source_url"] == "https://example.com/norms"
 
 
 def test_midstream_failure_persists_nothing(client, admin, mock_answer, monkeypatch):
     upload_pdf(client, admin["access_token"])
     convo_id = make_convo(client, admin["access_token"])
 
-    def broken_stream(question, sources, history=()):
-        yield "The answer is"
+    def script(state):
+        yield ("messages", (FakeChunk("The answer is"), {"langgraph_node": "agent"}))
         raise RuntimeError("model blew up")
 
-    monkeypatch.setattr(chat_service, "stream_answer", broken_stream)
+    monkeypatch.setattr(agent_service, "get_graph", lambda: FakeGraph(script))
     events = parse_sse(ask(client, admin["access_token"], convo_id).text)
     assert events[-1][0] == "error"
     assert "Nothing was saved" in events[-1][1]["detail"]
@@ -154,14 +211,11 @@ def test_midstream_failure_persists_nothing(client, admin, mock_answer, monkeypa
 
 
 def test_not_configured_yields_clear_error(client, admin, mock_answer, monkeypatch):
+    from app.config import get_settings
+
     upload_pdf(client, admin["access_token"])
     convo_id = make_convo(client, admin["access_token"])
-
-    def unconfigured(question, sources, history=()):
-        raise chat_service.ChatNotConfigured("The answer model is not configured.")
-        yield  # pragma: no cover
-
-    monkeypatch.setattr(chat_service, "stream_answer", unconfigured)
+    monkeypatch.setattr(get_settings(), "ANTHROPIC_API_KEY", "")
     events = parse_sse(ask(client, admin["access_token"], convo_id).text)
     assert events[-1][0] == "error"
     assert "not configured" in events[-1][1]["detail"]

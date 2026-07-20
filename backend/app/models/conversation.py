@@ -50,6 +50,7 @@ class Message(Base):
     seq: Mapped[int] = mapped_column(Integer, default=0, index=True)
     content: Mapped[str] = mapped_column(Text)
     sources: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON
+    trace: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON: agent steps
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

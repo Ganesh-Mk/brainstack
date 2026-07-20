@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import logging
 import threading
+import time
 import uuid
 from typing import Generator
 
@@ -26,15 +27,16 @@ from app import db as app_db
 from app.config import get_settings
 from app.core.deps import CurrentUser, get_current_user
 from app.db import get_db
-from app.models import Conversation, Document, Message
+from app.models import Conversation, Message
 from app.schemas.chat import (
     AskRequest,
     ConversationDetail,
     ConversationOut,
     MessageOut,
     SourceOut,
+    TraceStep,
 )
-from app.services import chat
+from app.services import agent, chat
 
 log = logging.getLogger("chat")
 
@@ -44,12 +46,6 @@ router = APIRouter(prefix="/conversations", tags=["conversations"])
 # bump moves this guard into Redis — noted in the phase doc).
 _streaming: set[uuid.UUID] = set()
 _streaming_lock = threading.Lock()
-
-NO_SOURCES_REPLY = (
-    "This workspace has no indexed documents yet, so there's nothing for me "
-    "to answer from. Add sources in the Knowledge section first."
-)
-
 
 def _get_owned(
     conversation_id: uuid.UUID, current: CurrentUser, db: Session
@@ -79,6 +75,9 @@ def _to_message_out(m: Message) -> MessageOut:
         content=m.content,
         sources=(
             [SourceOut(**s) for s in json.loads(m.sources)] if m.sources else None
+        ),
+        trace=(
+            [TraceStep(**t) for t in json.loads(m.trace)] if m.trace else None
         ),
         created_at=m.created_at,
     )
@@ -198,18 +197,7 @@ def ask(
             )
         _streaming.add(convo.id)
 
-    has_ready_docs = (
-        db.scalar(
-            select(func.count())
-            .select_from(Document)
-            .where(
-                Document.tenant_id == current.tenant_id,
-                Document.status == "ready",
-            )
-        )
-        > 0
-    )
-    tenant_id, user_id = current.tenant_id, current.user.id
+    tenant_id = current.tenant_id
     convo_id, first_question = convo.id, _question_count(db, convo.id) == 0
 
     def generate() -> Generator[str, None, None]:
@@ -217,28 +205,61 @@ def ask(
         # the response is still streaming.
         session = app_db.SessionLocal()
         try:
-            # Empty library: friendly short-circuit, no model call, no cost —
-            # but it IS a real exchange, so it persists.
-            if not has_ready_docs:
-                yield _sse("sources", [])
-                yield _sse("delta", {"text": NO_SOURCES_REPLY})
-                ids = _persist(session, question, NO_SOURCES_REPLY, [])
-                yield _sse("done", ids)
-                return
-
-            sources = chat.retrieve(session, tenant_id, question)
-            yield _sse("sources", [s.to_dict() for s in sources])
+            if not get_settings().ANTHROPIC_API_KEY:
+                raise chat.ChatNotConfigured(
+                    "The answer model is not configured on this server."
+                )
 
             history = chat.history_messages(
                 session, convo_id, get_settings().CHAT_HISTORY_TURNS
             )
-            answer_parts: list[str] = []
-            for fragment in chat.stream_answer(question, sources, history):
-                answer_parts.append(fragment)
-                yield _sse("delta", {"text": fragment})
+            state = agent.initial_state(tenant_id, question, history)
 
-            ids = _persist(session, question, "".join(answer_parts), sources)
-            yield _sse("done", ids)
+            answer_parts: list[str] = []
+            sources: list[dict] = []
+            trace: list[dict] = []
+            draft_started = None
+            t_start = time.perf_counter()
+
+            for mode, payload in agent.get_graph().stream(
+                state, stream_mode=["messages", "custom"]
+            ):
+                if mode == "custom":
+                    if "trace" in payload:
+                        trace.append(payload["trace"])
+                        yield _sse("trace", payload["trace"])
+                    if "sources" in payload:
+                        sources = payload["sources"]
+                        yield _sse("sources", sources)
+                elif mode == "messages":
+                    chunk, meta = payload
+                    if meta.get("langgraph_node") != "agent":
+                        continue
+                    text = agent.chunk_text(chunk)
+                    if text:
+                        if draft_started is None:
+                            draft_started = time.perf_counter()
+                        answer_parts.append(text)
+                        yield _sse("delta", {"text": text})
+
+            answer = "".join(answer_parts).strip()
+            if not answer:
+                raise RuntimeError("agent produced no answer text")
+
+            # Close the trace with the drafting step (persisted + sent).
+            drafting = {
+                "n": len(trace) + 1,
+                "kind": "drafting",
+                "label": "Drafting the answer",
+                "ms": round(
+                    (time.perf_counter() - (draft_started or t_start)) * 1000
+                ),
+            }
+            trace.append(drafting)
+            yield _sse("trace", drafting)
+
+            ids = _persist(session, question, answer, sources, trace)
+            yield _sse("done", {**ids, "trace": trace})
 
         except chat.ChatNotConfigured as e:
             yield _sse("error", {"detail": str(e)})
@@ -255,7 +276,11 @@ def ask(
                 _streaming.discard(convo_id)
 
     def _persist(
-        session: Session, q: str, answer: str, sources: list[chat.Source]
+        session: Session,
+        q: str,
+        answer: str,
+        sources: list[dict],
+        trace: list[dict],
     ) -> dict:
         # Safe without locking: the per-conversation streaming guard means at
         # most one writer per conversation at a time.
@@ -280,7 +305,8 @@ def ask(
             role="assistant",
             seq=next_seq + 1,
             content=answer,
-            sources=json.dumps([s.to_dict() for s in sources]) if sources else None,
+            sources=json.dumps(sources) if sources else None,
+            trace=json.dumps(trace) if trace else None,
         )
         session.add_all([user_msg, assistant_msg])
         fresh = session.get(Conversation, convo_id)

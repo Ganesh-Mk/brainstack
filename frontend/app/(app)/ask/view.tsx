@@ -18,12 +18,14 @@ import {
   type ApiConversation,
   type ApiMessage,
   type ApiSource,
+  type ApiTraceStep,
   isBackendConfigured,
   streamAsk,
 } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { MessageContent } from "@/components/ask/MessageContent";
 import { PdfViewer } from "@/components/ask/PdfViewer";
+import { TraceSteps } from "@/components/ask/TraceSteps";
 import { Badge } from "@/components/ui/Badge";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
@@ -51,6 +53,12 @@ const DEMO_SOURCES: ApiSource[] = [
   },
 ];
 
+const DEMO_TRACE: ApiTraceStep[] = [
+  { n: 1, kind: "planning", label: "Planning" },
+  { n: 2, kind: "knowledge", label: "Searching knowledge", detail: "refund policy changes", ms: 480 },
+  { n: 3, kind: "drafting", label: "Drafting the answer", ms: 2100 },
+];
+
 const DEMO_MESSAGES: ApiMessage[] = [
   {
     id: "demo-q",
@@ -65,6 +73,7 @@ const DEMO_MESSAGES: ApiMessage[] = [
     content:
       "Refunds are issued in full within **10 business days** for work sent back inside 30 days of handover [1]. After 30 days, clients receive **studio credit** instead — it never expires [2].",
     sources: DEMO_SOURCES,
+    trace: DEMO_TRACE,
     created_at: new Date(Date.now() - 55e3).toISOString(),
   },
 ];
@@ -86,6 +95,8 @@ export function AskView() {
   const [streaming, setStreaming] = useState(false);
   const [liveText, setLiveText] = useState("");
   const [liveSources, setLiveSources] = useState<ApiSource[] | null>(null);
+  const [liveTrace, setLiveTrace] = useState<ApiTraceStep[]>([]);
+  const [panelTab, setPanelTab] = useState<"sources" | "trace">("sources");
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
 
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(
@@ -194,16 +205,20 @@ export function AskView() {
     setStreaming(true);
     setLiveText("");
     setLiveSources(null);
+    setLiveTrace([]);
     setActiveCitation(null);
+    setPanelTab("trace"); // watch the agent think; evidence lands after
 
     await streamAsk(token, convoId, question, {
       onSources: (sources) => setLiveSources(sources),
+      onTrace: (step) => setLiveTrace((prev) => [...prev, step]),
       onDelta: (text) => setLiveText((prev) => prev + text),
       onDone: () => {
         setStreaming(false);
         setPendingQuestion(null);
         setLiveText("");
         setLiveSources(null);
+        setPanelTab("sources");
         void openConversation(convoId);
         void loadConversations();
       },
@@ -212,6 +227,7 @@ export function AskView() {
         setPendingQuestion(null);
         setLiveText("");
         setLiveSources(null);
+        setLiveTrace([]);
         setInput(question); // give the question back — nothing was saved
         toast("Answer failed", message, "error");
       },
@@ -230,6 +246,9 @@ export function AskView() {
   const panelSources: ApiSource[] | null = streaming
     ? liveSources
     : (selectedMessage?.sources ?? null);
+  const panelTrace: ApiTraceStep[] = streaming
+    ? liveTrace
+    : (selectedMessage?.trace ?? []);
 
   const onCitation = (messageId: string) => (n: number) => {
     setSelectedMessageId(messageId);
@@ -470,11 +489,35 @@ export function AskView() {
 
       {/* ── Sources pane ───────────────────────────────────────────────── */}
       <aside className="hidden min-h-0 flex-col rounded-2xl border border-border bg-surface shadow-xs xl:flex">
-        <div className="border-b border-border px-3.5 py-3">
-          <p className="text-xs font-semibold tracking-wide text-subtle uppercase">
-            Sources
-          </p>
+        <div className="flex items-center gap-1 border-b border-border px-2.5 py-2">
+          {(["sources", "trace"] as const).map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setPanelTab(tab)}
+              className={cn(
+                "rounded-lg px-2.5 py-1 text-xs font-semibold tracking-wide uppercase transition",
+                panelTab === tab
+                  ? "bg-surface-raised text-primary"
+                  : "text-subtle hover:text-primary",
+              )}
+            >
+              {tab === "sources" ? "Sources" : "Agent trace"}
+            </button>
+          ))}
+          {streaming && panelTab === "trace" && (
+            <span className="ml-auto mr-1 h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />
+          )}
         </div>
+        {panelTab === "trace" ? (
+          <div className="min-h-0 flex-1 overflow-y-auto p-3">
+            <TraceSteps
+              steps={panelTrace}
+              live={streaming}
+              drafting={streaming && liveText.length > 0}
+            />
+          </div>
+        ) : (
         <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto p-3">
           {!panelSources || panelSources.length === 0 ? (
             <p className="px-2 py-8 text-center text-xs leading-5 text-subtle">
@@ -543,7 +586,8 @@ export function AskView() {
             ))
           )}
         </div>
-        {panelSources && panelSources.length > 0 && (
+        )}
+        {panelTab === "sources" && panelSources && panelSources.length > 0 && (
           <p className="border-t border-border px-3.5 py-2.5 text-[11px] leading-4 text-subtle">
             <Globe className="mr-1 inline h-3 w-3 align-[-1px]" />
             Retrieved from this workspace&apos;s private index only.
