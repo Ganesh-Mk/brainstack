@@ -168,10 +168,12 @@ drop it behind pages that already exist.
 ## 5. Repo / folder structure
 
 ```
-brainstack/                          ← (this repo; docs already here)
-├── PROJECT_IDEA.md
-├── PROJECT_GUIDE.md
-├── PHASE_1.md                       ← this file
+brainstack/                          ← (this repo)
+├── docs/
+│   ├── PROJECT_IDEA.md
+│   ├── PROJECT_GUIDE.md
+│   ├── PHASE_1.md                   ← this file
+│   └── PHASE_1_COMPLETE.md
 │
 └── web/                             ← the Next.js product (Phase 1 lives here)
     ├── middleware.ts                ← host-based subdomain routing

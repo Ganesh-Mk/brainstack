@@ -17,5 +17,5 @@ npm run dev     # http://localhost:3000  (marketing at /, app at /dashboard)
 npm run build
 ```
 
-See `../PHASE_1.md` for the full spec and `../PROJECT_GUIDE.md` for the
-backend phases that progressively unlock the locked pages.
+See `../docs/PHASE_1.md` for the full spec and `../docs/PROJECT_GUIDE.md`
+for the backend phases that progressively unlock the locked pages.

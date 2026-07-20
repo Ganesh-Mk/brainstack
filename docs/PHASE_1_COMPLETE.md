@@ -1,9 +1,12 @@
-# ✅ Phase 1 — COMPLETE (Build Report)
+# ✅ Phase 1 — WRAPPED (Build Report)
 
-> **Status: the entire Phase 1 build is done, verified, and ready to deploy.**
-> This document is the handoff: Part A is everything that was built, Part B is
-> the short list of things only **you** can do to take it live at
-> `brainstack.space`.
+> **Status: Phase 1 is 100% complete and LIVE at
+> [brainstack.space](https://brainstack.space) /
+> [app.brainstack.space](https://app.brainstack.space).**
+> Deployed on Vercel, domains attached and verified (2026-07-20), and every
+> backend credential for the upcoming phases is already in the root `.env`
+> and connection-tested. Part A is everything that was built; Part B records
+> the deployment/credential steps, now all done.
 
 ---
 
@@ -133,55 +136,52 @@ mock.
 
 ---
 
-## Part B — What YOU need to do (the only things I can't)
+## Part B — Deployment & credentials (ALL DONE ✅ · 2026-07-20)
 
-Two required steps, both ~10 minutes. Everything else is optional.
+### ✅ Done 1 — Live on Vercel
 
-### 🔴 Required 1 — Put it on Vercel
+- Project **`brainstack`** imported from `Ganesh-Mk/brainstack` with
+  **Root Directory = `web`**; production deployment green
+  (`brainstack-swart.vercel.app`).
 
-1. Go to **vercel.com** → sign in **with your GitHub account** (Ganesh-Mk).
-2. **Add New → Project** → import **`Ganesh-Mk/brainstack`**.
-3. On the configure screen set **Root Directory = `web`** ← the one setting
-   that matters. Framework auto-detects as Next.js. Leave build settings
-   default.
-4. (Optional, in Project → Settings → Environment Variables) add:
-   - `NEXT_PUBLIC_ROOT_DOMAIN` = `brainstack.space`
-   - `NEXT_PUBLIC_APP_DOMAIN` = `app.brainstack.space`
-   (the code defaults to these values anyway, so skipping is fine.)
-5. Deploy. You'll get a `*.vercel.app` URL where **everything** works on one
-   origin (marketing at `/`, app at `/dashboard`) — that's by design.
+### ✅ Done 2 — Domain attached (GoDaddy → Vercel)
 
-### 🔴 Required 2 — Attach your domain
+DNS records at GoDaddy:
 
-1. In the Vercel project → **Settings → Domains**, add **three** entries:
-   `brainstack.space`, `www.brainstack.space`, and `app.brainstack.space`.
-2. Vercel will show you exact DNS records. At your domain registrar (where
-   you bought `brainstack.space`), add:
-   - **A record** for `@` (apex) → the IP Vercel shows (typically `76.76.21.21`).
-   - **CNAME** for `app` → `cname.vercel-dns.com`.
-   - **CNAME** for `www` → `cname.vercel-dns.com`.
-3. Wait for DNS to propagate (minutes to a few hours). Vercel provisions
-   HTTPS automatically.
-4. Then verify the split-brain routing:
-   - `https://brainstack.space` → landing page.
-   - `https://app.brainstack.space` → redirects to `/dashboard`.
-   - `https://brainstack.space/dashboard` → bounces to the app subdomain.
-   - `https://www.brainstack.space` → bounces to the apex.
+- **A** `@` → `216.198.79.1`
+- **CNAME** `app` → `575c3626bac9c560.vercel-dns-017.com`
+- **CNAME** `www` → `575c3626bac9c560.vercel-dns-017.com`
 
-### 🟡 Whenever you get a minute (not blocking)
+(GoDaddy rejects Vercel's trailing dot — enter values without it. The
+pre-existing NS / SOA / `_domainconnect` / `_dmarc` records stay untouched.)
 
-- **Supabase** — create a free project at supabase.com, copy the
-  **connection string** (Project Settings → Database) into `DATABASE_URL`
-  in the root `.env`. Needed from Backend Phase 0, not before.
-- **Anthropic** — console.anthropic.com → API key → `ANTHROPIC_API_KEY` in
-  `.env`. ⚠️ **Set a hard spend limit ($5–10) first.** Needed from Backend
-  Phase 1.
-- **Pinecone** — app.pinecone.io → API key → `PINECONE_API_KEY`. Needed at
-  the end of Backend Phase 1.
-- **Later, in this order of need:** Tavily (Phase 4), OpenAI embeddings
-  (prod quality), LangSmith (Phase 7).
-- Every variable name is already waiting in the root `.env` with comments
-  telling you where to get it.
+In Vercel → Domains, all three domains are **"Connect to Production"** with
+**No Redirect** — the app's `proxy.ts` handles www→apex and path bouncing
+itself. (Setting apex → "Redirect to www" caused an infinite redirect loop
+with the proxy; that's why it must be No Redirect.)
+
+**All four routing cases verified live:**
+
+- `https://brainstack.space` → landing page (200) ✓
+- `https://www.brainstack.space` → 308 → apex ✓
+- `https://app.brainstack.space` → 307 → `/dashboard` ✓
+- `https://brainstack.space/dashboard` → 307 → app subdomain ✓
+
+### ✅ Done 3 — Backend credentials gathered & connection-tested
+
+All in the root `.env` (gitignored), each verified with a real request:
+
+| Credential | Test result |
+|---|---|
+| `DATABASE_URL` (Supabase session pooler, port 5432) | Connected — PostgreSQL 17.6, user `postgres`, fresh DB |
+| `SUPABASE_URL` / `SUPABASE_ANON_KEY` / `SUPABASE_SECRET_KEY` | Valid (note: the new `sb_publishable_*` key **is** the anon key; the `/rest/v1/` root endpoint is secret-key-only by design) |
+| `ANTHROPIC_API_KEY` | Valid (200 on the free models endpoint) |
+| `OPENAI_API_KEY` | Valid (200 on the free models endpoint) |
+| `PINECONE_API_KEY` | Valid — index list empty, correct: the `brainstack` index is created programmatically in Backend Phase 1 |
+
+Still pending (needed much later, non-blocking): **Tavily** (Backend
+Phase 4), **LangSmith** (Backend Phase 7), `JWT_SECRET` (generated with
+`openssl rand -hex 32` when Backend Phase 0 starts).
 
 ### ▶️ Try it locally right now
 
@@ -212,9 +212,12 @@ Open `http://localhost:3000` — the landing page. Then:
 - [x] Kyro-grade visual consistency (compact, hairline borders, rounded-2xl, quiet motion)
 - [x] ⌘K palette jumps to any page; subdomain routing verified for prod and dev
 - [x] Env scaffolding ready (Supabase + all backend keys templated in `.env`)
-- [ ] **You:** Vercel import (Root Directory = `web`) ← Required 1
-- [ ] **You:** DNS records at your registrar ← Required 2
+- [x] **You:** Vercel import (Root Directory = `web`) — deployed ✅
+- [x] **You:** DNS records at GoDaddy — all four routing cases verified live ✅
+- [x] **Bonus:** Supabase, Anthropic, OpenAI and Pinecone keys gathered and
+      connection-tested ahead of schedule ✅
 
-Once those two boxes are ticked, **Phase 1 is wrapped** — and the next step
-is `PROJECT_GUIDE.md` **Backend Phase 0** (FastAPI + Supabase + JWT), which
+**Phase 1 is wrapped.** The product is live at
+[brainstack.space](https://brainstack.space). Next up:
+`PROJECT_GUIDE.md` **Backend Phase 0** (FastAPI + Supabase + JWT), which
 plugs into pages that are already waiting for it.
