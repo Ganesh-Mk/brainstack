@@ -7,6 +7,7 @@
 | [`PROJECT_IDEA.md`](PROJECT_IDEA.md) | The product: what BrainStack is, who it's for, the feature set. |
 | [`PROJECT_GUIDE.md`](PROJECT_GUIDE.md) | The learning + build guide: every AI concept explained, and the 8-phase backend plan (Part 3). The north star. |
 | [`PHASE_7.md`](PHASE_7.md) | **Current phase** — MCP + RBAC: the Company MCP Server, agent as MCP client, capability-based roles. |
+| [`PHASE_7_COMPLETE.md`](PHASE_7_COMPLETE.md) | Phase 7 shipped: what was built, both production war stories, browser checklist. |
 
 ## `archive/`
 
@@ -41,13 +42,16 @@ Current mapping:
 | Phase 4 | Backend Phase 2 — real ingestion pipeline | ✅ live (Knowledge unlocked) |
 | Phase 5 | Backend Phase 3 — grounded Q&A + citations + streaming | ✅ live (Ask unlocked) |
 | Phase 6 | Backend Phase 4 — the agent (LangGraph) | ✅ live (trace panel + /agent/trace) |
-| Phase 7 | Backend Phase 5 — MCP + RBAC ⭐⭐ | 🔨 planned |
+| Phase 7 | Backend Phase 5 — MCP + RBAC ⭐⭐ | ✅ live (Connections + Tickets + Workforce Analytics unlocked) |
 
 ## The live stack
 
 ```
-brainstack.space       → marketing        (Vercel)
-app.brainstack.space   → product shell    (Vercel, root dir `frontend`)
-api.brainstack.space   → FastAPI          (Render, root dir `backend`)
-                       → Supabase Postgres + Upstash Redis + Pinecone
+brainstack.space            → marketing        (Vercel)
+app.brainstack.space        → product shell    (Vercel, root dir `frontend`)
+api.brainstack.space        → FastAPI          (Render, root dir `backend`)
+                            → Supabase Postgres + Upstash Redis + Pinecone
+company-nz3g.onrender.com   → Company Systems  (Render, root dir `company`)
+                              MCP server + mock ticketing/HR — internal only,
+                              reached by the backend over MCP w/ shared secret
 ```
