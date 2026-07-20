@@ -32,9 +32,12 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="BrainStack Company Systems", version="1.0.0", lifespan=lifespan)
 app.add_middleware(BaseHTTPMiddleware, dispatch=auth_middleware)
 
-# Serve the MCP endpoint at exactly /mcp (the sub-app's internal path is "/").
-mcp.settings.streamable_http_path = "/"
-app.mount("/mcp", mcp.streamable_http_app())
+# Serve the MCP endpoint at exactly /mcp with NO trailing-slash redirect:
+# mounting a sub-app at "/mcp" makes Starlette 307 `POST /mcp` → `/mcp/`, and
+# following that redirect through Render's proxy fails with 421 Misdirected
+# Request. So the sub-app owns the "/mcp" path itself and mounts at root
+# (it's matched last — the REST routes above take precedence).
+mcp.settings.streamable_http_path = "/mcp"
 
 
 def _ctx() -> str:
@@ -77,3 +80,8 @@ def reset():
     store.reset(tenant)
     store.tenant_state(tenant)
     return {"status": "reseeded"}
+
+
+# Last route: the MCP sub-app (serving exactly /mcp — see note above). It must
+# be mounted AFTER the REST routes so they keep precedence.
+app.mount("/", mcp.streamable_http_app())
