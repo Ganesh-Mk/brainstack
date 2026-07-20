@@ -33,10 +33,21 @@ def client():
             db.close()
 
     app.dependency_overrides[get_db] = override_get_db
-    with TestClient(app) as c:
-        yield c
-    app.dependency_overrides.clear()
-    Base.metadata.drop_all(engine)
+
+    # Background tasks (the ingestion pipeline) open their own session via
+    # app.db.SessionLocal — point it at the test engine so they never touch
+    # the real database, then restore it afterwards.
+    import app.db as app_db
+
+    real_session_local = app_db.SessionLocal
+    app_db.SessionLocal = TestingSession
+    try:
+        with TestClient(app) as c:
+            yield c
+    finally:
+        app_db.SessionLocal = real_session_local
+        app.dependency_overrides.clear()
+        Base.metadata.drop_all(engine)
 
 
 def signup(client, company, name, email, password="password123"):

@@ -30,6 +30,32 @@ export type InviteInfo = {
   role: Role;
 };
 
+export type DocumentStatus =
+  | "queued"
+  | "extracting"
+  | "chunking"
+  | "embedding"
+  | "ready"
+  | "failed";
+
+export type ApiDocument = {
+  id: string;
+  title: string;
+  source_type: "pdf" | "url" | "text";
+  source_url: string | null;
+  status: DocumentStatus;
+  error: string | null;
+  page_count: number;
+  chunk_count: number;
+  chunks_done: number;
+  created_at: string;
+};
+
+/** True while the ingestion pipeline is still working on a document. */
+export function isProcessing(status: DocumentStatus): boolean {
+  return status !== "ready" && status !== "failed";
+}
+
 export class ApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
@@ -40,9 +66,15 @@ export class ApiError extends Error {
 
 async function request<T>(
   path: string,
-  options: { method?: string; body?: unknown; token?: string } = {},
+  options: {
+    method?: string;
+    body?: unknown;
+    token?: string;
+    formData?: FormData;
+  } = {},
 ): Promise<T> {
   const headers: Record<string, string> = {};
+  // FormData sets its own multipart boundary — never set Content-Type for it.
   if (options.body !== undefined) headers["Content-Type"] = "application/json";
   if (options.token) headers["Authorization"] = `Bearer ${options.token}`;
 
@@ -51,7 +83,9 @@ async function request<T>(
     res = await fetch(`${API_URL}${path}`, {
       method: options.method ?? "GET",
       headers,
-      body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+      body:
+        options.formData ??
+        (options.body !== undefined ? JSON.stringify(options.body) : undefined),
     });
   } catch {
     throw new ApiError(0, "Can't reach the server. Is the backend running?");
@@ -100,4 +134,32 @@ export const api = {
       "/auth/invites",
       { method: "POST", body, token },
     ),
+
+  // ── Knowledge / documents ────────────────────────────────────────────────
+
+  listDocuments: (token: string) =>
+    request<ApiDocument[]>("/documents", { token }),
+
+  getDocument: (token: string, id: string) =>
+    request<ApiDocument>(`/documents/${id}`, { token }),
+
+  uploadDocument: (token: string, file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return request<ApiDocument>("/documents", {
+      method: "POST",
+      token,
+      formData,
+    });
+  },
+
+  ingestUrl: (token: string, url: string) =>
+    request<ApiDocument>("/documents/url", {
+      method: "POST",
+      token,
+      body: { url },
+    }),
+
+  deleteDocument: (token: string, id: string) =>
+    request<void>(`/documents/${id}`, { method: "DELETE", token }),
 };

@@ -12,6 +12,13 @@ PyJWT==2.13.0
 redis==8.0.1
 pinecone==9.1.0
 
+# ingestion pipeline (Phase 4)
+python-multipart==0.0.32
+httpx==0.28.1
+pymupdf==1.28.0
+trafilatura==2.1.0
+langchain-text-splitters==1.1.2
+fastembed==0.8.0
+
 # tests
 pytest==9.1.1
-httpx==0.28.1

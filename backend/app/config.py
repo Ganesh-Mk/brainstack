@@ -30,9 +30,25 @@ class Settings(BaseSettings):
     # Redis (Upstash, live in dev too)
     REDIS_URL: str = ""
 
-    # Pinecone (used by scripts/pinecone_smoke.py; product AI comes later)
+    # Pinecone — the vector store. One index; namespace per tenant.
     PINECONE_API_KEY: str = ""
     PINECONE_INDEX: str = "brainstack"
+
+    # Supabase Storage — original uploaded files (private `documents` bucket)
+    SUPABASE_URL: str = ""
+    SUPABASE_SECRET_KEY: str = ""
+    STORAGE_BUCKET: str = "documents"
+
+    # Ingestion pipeline
+    # fastembed runs the same all-MiniLM-L6-v2 the lab used (384-dim, matches
+    # the Pinecone index) but on ONNX — no PyTorch, fits the Render free tier.
+    EMBEDDING_MODEL: str = "sentence-transformers/all-MiniLM-L6-v2"
+    CHUNK_SIZE: int = 400  # lab-measured optimum (PHASE_3: 8/8 hit@1)
+    CHUNK_OVERLAP: int = 80
+    EMBED_BATCH_SIZE: int = 100  # also the Pinecone upsert batch size
+    MAX_UPLOAD_BYTES: int = 15 * 1024 * 1024
+    URL_FETCH_TIMEOUT: float = 20.0
+    URL_FETCH_MAX_BYTES: int = 5 * 1024 * 1024
 
     # CORS — the Phase 1 product surfaces
     CORS_ORIGINS: list[str] = [

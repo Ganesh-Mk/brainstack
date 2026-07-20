@@ -4,7 +4,6 @@ import {
   DollarSign,
   FileText,
   LayoutDashboard,
-  Library,
   Map,
   MessageSquare,
   ShieldCheck,
@@ -16,6 +15,7 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { KpiTile } from "@/components/ui/KpiTile";
+import { DocsIndexedTile } from "@/components/knowledge/DocsIndexedTile";
 import { LockBadge } from "@/components/patterns/LockBadge";
 import { PageHeader } from "@/components/patterns/PageHeader";
 
@@ -105,13 +105,7 @@ export default function DashboardPage() {
           deltaTone="up"
           icon={MessageSquare}
         />
-        <KpiTile
-          label="Documents indexed"
-          value="87"
-          delta="+6 this week"
-          deltaTone="up"
-          icon={Library}
-        />
+        <DocsIndexedTile />
         <KpiTile
           label="Avg faithfulness"
           value="0.91"

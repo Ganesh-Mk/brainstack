@@ -108,8 +108,7 @@ export const APP_NAV: NavItem[] = [
     href: "/knowledge",
     icon: Library,
     group: "Knowledge",
-    locked: true,
-    unlocksIn: "Backend Phase 2 · Ingestion pipeline",
+    locked: false,
     blurb:
       "Every source your workspace knows — searchable, with status, chunk counts and previews.",
   },
@@ -118,9 +117,8 @@ export const APP_NAV: NavItem[] = [
     href: "/knowledge/add",
     icon: Upload,
     group: "Knowledge",
-    locked: true,
+    locked: false,
     roles: ["admin"],
-    unlocksIn: "Backend Phase 2 · Ingestion pipeline",
     blurb:
       "Upload PDFs and docs, paste URLs, or connect data sources to grow the knowledge base.",
   },
@@ -129,9 +127,8 @@ export const APP_NAV: NavItem[] = [
     href: "/knowledge/ingestion",
     icon: Workflow,
     group: "Knowledge",
-    locked: true,
+    locked: false,
     roles: ["admin"],
-    unlocksIn: "Backend Phase 2 · Ingestion pipeline",
     blurb:
       "Watch documents move through the pipeline live — extract → chunk → embed → index.",
   },
