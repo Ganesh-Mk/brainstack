@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 
 from . import store
 from .security import require_action_role
@@ -21,6 +22,12 @@ mcp = FastMCP(
     "brainstack-company",
     instructions="Company ticketing and workforce systems for BrainStack.",
     stateless_http=True,
+    # The SDK's DNS-rebinding protection only accepts localhost Hosts and
+    # 421s the Render hostname. It guards browsers hitting localhost servers;
+    # this is a server-to-server API behind a shared secret — turn it off.
+    transport_security=TransportSecuritySettings(
+        enable_dns_rebinding_protection=False
+    ),
 )
 
 
