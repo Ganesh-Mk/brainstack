@@ -316,6 +316,111 @@ body {
   animation: bs-toast-bar 4500ms linear forwards;
 }
 
+/* ---------------------------------------------------------------------------
+   Marketing motion — ambient loops for brainstack.space. All neutralised
+   under prefers-reduced-motion (see the media query below).
+   --------------------------------------------------------------------------- */
+@keyframes bs-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+@keyframes bs-caret {
+  0%,
+  45% {
+    opacity: 1;
+  }
+  50%,
+  95% {
+    opacity: 0;
+  }
+}
+@keyframes bs-beam-dash {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+@keyframes bs-aurora {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    transform: translate(4%, -6%) scale(1.08);
+  }
+  66% {
+    transform: translate(-5%, 4%) scale(0.95);
+  }
+}
+@keyframes bs-gradient-pan {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+@keyframes bs-orbit-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+}
+
+.bs-marquee {
+  animation: bs-marquee var(--bs-marquee-duration, 36s) linear infinite;
+}
+.bs-caret {
+  animation: bs-caret 1s steps(1) infinite;
+}
+.bs-beam-dash {
+  stroke-dasharray: 6 6;
+  animation: bs-beam-dash 0.9s linear infinite;
+}
+.bs-aurora {
+  animation: bs-aurora 18s ease-in-out infinite;
+}
+.bs-gradient-pan {
+  background-size: 200% 200%;
+  animation: bs-gradient-pan 8s ease-in-out infinite;
+}
+.bs-orbit-pulse {
+  animation: bs-orbit-pulse 2.6s ease-in-out infinite;
+}
+
+/* Hover glow for feature cards — a soft accent halo that follows the
+   pointer via --glow-x / --glow-y custom props set from JS. */
+.bs-glow-card {
+  position: relative;
+  overflow: hidden;
+}
+.bs-glow-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+  background: radial-gradient(
+    380px circle at var(--glow-x, 50%) var(--glow-y, 50%),
+    color-mix(in srgb, var(--accent-400) 14%, transparent),
+    transparent 65%
+  );
+  pointer-events: none;
+}
+.bs-glow-card:hover::before {
+  opacity: 1;
+}
+
 /* A faint dot grid — quiet backdrop for auth / hero / 404 surfaces. */
 .bs-dotgrid {
   background-image: radial-gradient(
@@ -346,7 +451,13 @@ body {
   .bs-shimmer,
   .bs-toast-in,
   .bs-toast-out,
-  .bs-toast-bar {
+  .bs-toast-bar,
+  .bs-marquee,
+  .bs-caret,
+  .bs-beam-dash,
+  .bs-aurora,
+  .bs-gradient-pan,
+  .bs-orbit-pulse {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;

@@ -63,23 +63,102 @@ over cost, latency, and answer quality.
 
 ---
 
+## Architecture
+
+```
+                      ┌────────────────────────────────────────────┐
+ brainstack.space     │  backend · FastAPI                         │
+ app.brainstack.space │                                            │
+        │             │   LangGraph agent                          │      ┌──────────────────┐
+        ▼             │    ├ search_knowledge ──► Pinecone + BM25  │ MCP  │ company systems  │
+ ┌────────────┐  SSE  │    │   (hybrid RRF, per-tenant namespace)  │◄────►│ (own service)    │
+ │  frontend  │◄─────►│    ├ web_search ───────► Tavily            │      │  assign_ticket   │
+ │  Next.js   │       │    └ MCP tools* ─────── discovered, not    │      │  list_tickets    │
+ └────────────┘       │        *manager/admin    hardcoded         │      │  get_analytics   │
+                      │                                            │      └──────────────────┘
+                      │   reflection critic · memory extractor     │
+                      │   query traces · eval runner · rate limit  │
+                      └───────┬──────────────┬─────────────┬───────┘
+                          Supabase        Pinecone      Upstash
+                          Postgres        (vectors)     Redis
+```
+
+**The native-vs-MCP boundary:** knowledge and web search are *native* tools —
+they're the product's core and feed the citation pipeline directly. External
+company systems sit behind **MCP**: the agent discovers their tools over the
+protocol at session start, so swapping the ticketing system is a URL change,
+not an agent change. Authorization works the same way — a session's role
+decides which tools are *discovered at all*. There is nothing to jailbreak,
+because for an employee the action tools simply don't exist.
+
+## Quality, as numbers
+
+A 22-question golden dataset (including questions the corpus can't answer,
+where refusing *is* the right answer) is scored by LLM judges plus
+deterministic checks, end-to-end through the real API:
+
+| metric | deployed config | with cross-encoder rerank |
+|---|---|---|
+| faithfulness | 0.977 | 1.000 |
+| answer relevance | 0.955 | 0.932 |
+| retrieval hit-rate | 1.000 | 1.000 |
+| citation validity | 0.955 | 1.000 |
+
+Every production question also leaves a trace row — latency, first-token
+latency, tools used, token usage, attributed cost — feeding the Analytics
+and Observability pages.
+
+## Tradeoffs, made on purpose
+
+- **Pinecone, one index, namespace-per-tenant** — isolation by construction;
+  the namespace comes from the authenticated session, never from a request.
+- **Hybrid retrieval always on; cross-encoder rerank opt-in** — the reranker
+  measurably improves faithfulness (table above) but a second ONNX model
+  doesn't fit a 512MB instance. BM25+RRF is pure Python and free.
+- **Reflection capped at two attempts, structurally** — the critic can only
+  examine the first draft; the second ships regardless. Never loops, never
+  returns empty.
+- **Celery for ingestion in the compose stack, BackgroundTasks on the free
+  dyno** — same pipeline; the queue (restart-safe, retrying, inspectable)
+  runs where a worker process exists.
+- **Prompt caching** on the stable system-prefix; per-conversation memory and
+  summaries stay outside the cached block.
+- **Rate limiting per tenant** (Redis fixed-window) that degrades to a no-op
+  if Redis is missing — protection is never an outage.
+
 ## Stack
 
 | Layer | Technology |
 |---|---|
 | Frontend | Next.js (App Router), TypeScript, Tailwind CSS |
-| Backend | Python, FastAPI, SQLAlchemy, JWT auth |
-| AI | LangChain / LangGraph, Claude, MCP (Model Context Protocol) |
+| Backend | Python, FastAPI, SQLAlchemy, Alembic, JWT auth, Celery |
+| AI | LangGraph, Claude, MCP (Model Context Protocol), fastembed (ONNX) |
+| Retrieval | Pinecone (dense) + BM25/RRF (hybrid) + optional cross-encoder |
 | Data | Supabase (Postgres), Pinecone (vectors), Upstash (Redis) |
-| Hosting | Vercel (web), Render (API) |
+| Hosting | Vercel (web), Render (API + company systems) |
 
----
+## Run it
+
+```bash
+# the full production shape: api + worker + company MCP server +
+# postgres + redis + frontend (Pinecone/Claude/etc. via .env keys)
+docker compose up --build
+```
+
+Or each piece directly: `backend/` (uvicorn), `company/` (uvicorn),
+`frontend/` (next dev). Evaluate answer quality any time:
+
+```bash
+python backend/eval/run_eval.py http://localhost:8000
+```
 
 ## Repository
 
 ```
 frontend/   Next.js — marketing site and product shell
-backend/    FastAPI — API, auth, multi-tenancy
+backend/    FastAPI — API, agent, retrieval, memory, eval, observability
+company/    The company-systems service — REST + MCP over streamable-http
+lab/        RAG-from-scratch experiments that set the retrieval defaults
 docs/       Product definition, architecture, and build guide
 ```
 

@@ -30,6 +30,32 @@ export type InviteInfo = {
   role: Role;
 };
 
+export type ApiMember = {
+  id: string;
+  email: string;
+  name: string;
+  role: Role;
+  created_at: string;
+};
+
+export type ApiModelConfig = {
+  answer_model: string;
+  utility_model: string;
+  embedding_model: string;
+  rerank_enabled: boolean;
+  rerank_model: string | null;
+  hybrid_search: boolean;
+  chunk_size: number;
+  chunk_overlap: number;
+  answer_max_tokens: number;
+  agent_max_steps: number;
+  rate_limit_per_hour: number;
+  prompt_cache: boolean;
+  price_input_per_mtok: number;
+  price_output_per_mtok: number;
+  mcp_connected: boolean;
+};
+
 export type DocumentStatus =
   | "queued"
   | "extracting"
@@ -304,6 +330,25 @@ export const api = {
       "/auth/invites",
       { method: "POST", body, token },
     ),
+
+  listMembers: (token: string) =>
+    request<ApiMember[]>("/auth/members", { token }),
+
+  updateMemberRole: (token: string, id: string, role: Role) =>
+    request<ApiMember>(`/auth/members/${id}`, {
+      method: "PATCH",
+      body: { role },
+      token,
+    }),
+
+  removeMember: (token: string, id: string) =>
+    request<void>(`/auth/members/${id}`, { method: "DELETE", token }),
+
+  renameTenant: (token: string, name: string) =>
+    request<ApiTenant>("/auth/tenant", { method: "PATCH", body: { name }, token }),
+
+  modelConfig: (token: string) =>
+    request<ApiModelConfig>("/stats/config", { token }),
 
   // ── Knowledge / documents ────────────────────────────────────────────────
 

@@ -43,6 +43,12 @@ def sealed_seams(monkeypatch):
     monkeypatch.setattr(memory, "haiku", _no_llm)  # extract/summary/critic → no-op
     monkeypatch.setattr(vectorstore, "get_index", _no_llm)  # recall → []
     monkeypatch.setattr(rerank, "get_model", lambda: None)  # keep retrieval order
+    # rate limiting talks to the real Upstash Redis in .env — off by default;
+    # the rate-limit tests bring their own fake client
+    monkeypatch.setattr(get_settings(), "RATE_LIMIT_ASKS_PER_HOUR", 0)
+    from app.core import ratelimit
+
+    ratelimit.reset_for_tests()
 
 
 @pytest.fixture

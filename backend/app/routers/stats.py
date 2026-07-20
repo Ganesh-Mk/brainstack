@@ -207,6 +207,36 @@ def traces(
     }
 
 
+@router.get("/config")
+def model_config(
+    current: CurrentUser = Depends(require_admin),
+) -> dict:
+    """Read-only model/cost configuration for the Settings → Models page.
+    These are env-managed (12-factor); the page shows what's live, it
+    doesn't edit it."""
+    from app.config import get_settings
+    from app.services import mcp_client
+
+    s = get_settings()
+    return {
+        "answer_model": s.LLM_MODEL_AGENT,
+        "utility_model": s.LLM_MODEL_DEV,  # judges, memory, summaries
+        "embedding_model": s.EMBEDDING_MODEL,
+        "rerank_enabled": s.RERANK_ENABLED,
+        "rerank_model": s.RERANK_MODEL if s.RERANK_ENABLED else None,
+        "hybrid_search": s.HYBRID_ENABLED,
+        "chunk_size": s.CHUNK_SIZE,
+        "chunk_overlap": s.CHUNK_OVERLAP,
+        "answer_max_tokens": s.CHAT_MAX_TOKENS,
+        "agent_max_steps": s.AGENT_MAX_STEPS,
+        "rate_limit_per_hour": s.RATE_LIMIT_ASKS_PER_HOUR,
+        "prompt_cache": s.PROMPT_CACHE_ENABLED,
+        "price_input_per_mtok": s.PRICE_INPUT_PER_MTOK,
+        "price_output_per_mtok": s.PRICE_OUTPUT_PER_MTOK,
+        "mcp_connected": mcp_client.is_configured(),
+    }
+
+
 @router.get("/evals")
 def evals(
     current: CurrentUser = Depends(require_admin),

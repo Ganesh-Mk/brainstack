@@ -1,0 +1,73 @@
+# BrainStack — the full production shape, locally (PROJECT_GUIDE §Phase 8):
+#   app + Celery worker + Company MCP Server + Postgres + Redis + frontend.
+# Pinecone stays a managed service (API key + env, not a container) — as do
+# Supabase Storage, Anthropic and Tavily. Copy .env first: the AI keys come
+# from it; infra URLs are overridden to the containers below.
+#
+#   docker compose up --build
+#   frontend http://localhost:3000 · api http://localhost:8000 · company :8100
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: brainstack
+      POSTGRES_PASSWORD: brainstack
+      POSTGRES_DB: brainstack
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U brainstack"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build: ./backend
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://brainstack:brainstack@postgres:5432/brainstack
+      REDIS_URL: redis://redis:6379/0
+      INGEST_MODE: celery # the guide's migration off BackgroundTasks
+      COMPANY_MCP_URL: http://company:8100
+    ports: ["8000:8000"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      company: { condition: service_started }
+
+  worker:
+    build: ./backend
+    command: celery -A app.worker worker --loglevel=info --concurrency=2
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://brainstack:brainstack@postgres:5432/brainstack
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      backend: { condition: service_started }
+
+  company:
+    build: ./company
+    env_file: .env # provides MCP_SHARED_SECRET
+    ports: ["8100:8100"]
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports: ["3000:3000"]
+    depends_on:
+      backend: { condition: service_started }
+
+volumes:
+  pgdata:

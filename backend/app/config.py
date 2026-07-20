@@ -73,6 +73,14 @@ class Settings(BaseSettings):
     PRICE_INPUT_PER_MTOK: float = 1.0
     PRICE_OUTPUT_PER_MTOK: float = 5.0
 
+    # Production polish (Phase 10)
+    RATE_LIMIT_ASKS_PER_HOUR: int = 60  # per tenant; 0 disables; no-op sans Redis
+    PROMPT_CACHE_ENABLED: bool = True  # cache the stable system-prompt prefix
+    # BackgroundTasks (inline) on Render free tier — no worker dynos there.
+    # docker compose runs INGEST_MODE=celery: survives restarts, retries,
+    # scales workers, inspectable queue (the guide's 'why', written down).
+    INGEST_MODE: str = "inline"  # inline | celery
+
     # The agent (LangGraph)
     TAVILY_API_KEY: str = ""
     LLM_MODEL_AGENT: str = "claude-haiku-4-5"  # env-swap up for demos

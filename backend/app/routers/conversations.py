@@ -25,6 +25,7 @@ from sqlalchemy.orm import Session
 
 from app import db as app_db
 from app.config import get_settings
+from app.core import ratelimit
 from app.core.deps import CurrentUser, get_current_user
 from app.db import get_db
 from app.models import Conversation, Message, QueryTrace
@@ -202,6 +203,7 @@ def ask(
         raise HTTPException(status_code=422, detail="Ask something first.")
     if len(question) > get_settings().CHAT_MAX_QUESTION_CHARS:
         raise HTTPException(status_code=422, detail="That question is too long.")
+    ratelimit.check(current.tenant_id)  # 429 before any model spend
 
     with _streaming_lock:
         if convo.id in _streaming:

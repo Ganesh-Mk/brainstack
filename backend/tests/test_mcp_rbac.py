@@ -97,7 +97,8 @@ def test_system_prompt_is_role_aware():
     assert "manager and admin accounts only" in without
     # initial_state wires it through
     state = agent.initial_state(uuid.uuid4(), "q", [], role="employee")
-    assert "manager and admin accounts only" in state["messages"][0].content
+    # With prompt caching on, system content is a block list — stringify.
+    assert "manager and admin accounts only" in str(state["messages"][0].content)
     assert [t["name"] for t in state["tool_schemas"]] == NATIVE
 
 

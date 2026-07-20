@@ -37,3 +37,6 @@ rank-bm25==0.2.2
 
 # tests
 pytest==9.1.1
+
+# production polish (Phase 10)
+celery==5.5.3

@@ -19,8 +19,12 @@ from app.schemas.auth import (
     InviteInfoResponse,
     InviteOut,
     LoginRequest,
+    MemberOut,
+    MemberRoleUpdate,
     MeResponse,
     SignupRequest,
+    TenantOut,
+    TenantUpdateRequest,
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -158,3 +162,74 @@ def accept_invite(
     db.commit()
     db.refresh(user)
     return _auth_response(user)
+
+
+# ── Members & workspace (Phase 10) ──────────────────────────────────────────
+
+
+@router.get("/members", response_model=list[MemberOut])
+def list_members(
+    current: CurrentUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> list[User]:
+    return list(
+        db.scalars(
+            select(User)
+            .where(User.tenant_id == current.tenant_id)
+            .order_by(User.created_at.asc())
+        )
+    )
+
+
+def _member_or_404(member_id: uuid.UUID, current: CurrentUser, db: Session) -> User:
+    user = db.get(User, member_id)
+    if user is None or user.tenant_id != current.tenant_id:
+        raise HTTPException(status_code=404, detail="Member not found")
+    return user
+
+
+@router.patch("/members/{member_id}", response_model=MemberOut)
+def update_member_role(
+    member_id: uuid.UUID,
+    body: MemberRoleUpdate,
+    current: CurrentUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> User:
+    user = _member_or_404(member_id, current, db)
+    if user.id == current.user.id:
+        raise HTTPException(
+            status_code=400,
+            detail="You can't change your own role — ask another admin.",
+        )
+    user.role = body.role
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@router.delete("/members/{member_id}", status_code=status.HTTP_204_NO_CONTENT)
+def remove_member(
+    member_id: uuid.UUID,
+    current: CurrentUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> None:
+    user = _member_or_404(member_id, current, db)
+    if user.id == current.user.id:
+        raise HTTPException(
+            status_code=400, detail="You can't remove yourself from the workspace."
+        )
+    db.delete(user)
+    db.commit()
+
+
+@router.patch("/tenant", response_model=TenantOut)
+def rename_workspace(
+    body: TenantUpdateRequest,
+    current: CurrentUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    tenant = current.user.tenant
+    tenant.name = body.name.strip()
+    db.commit()
+    db.refresh(tenant)
+    return tenant

@@ -105,6 +105,18 @@ def get_document_file(
     )
 
 
+def _dispatch_ingestion(background_tasks: BackgroundTasks, doc_id) -> None:
+    """Inline (BackgroundTasks) on the free-tier deploy; Celery in the
+    docker-compose production shape. Same pipeline either way — the switch
+    is WHERE it runs, not WHAT runs (Phase 10, guide's 'why' in worker.py)."""
+    if get_settings().INGEST_MODE == "celery":
+        from app.worker import ingest_document
+
+        ingest_document.delay(str(doc_id))
+    else:
+        background_tasks.add_task(run_ingestion, doc_id)
+
+
 @router.post("", response_model=DocumentOut, status_code=status.HTTP_202_ACCEPTED)
 async def upload_document(
     file: UploadFile,
@@ -162,7 +174,7 @@ async def upload_document(
 
     db.commit()
     db.refresh(doc)
-    background_tasks.add_task(run_ingestion, doc.id)
+    _dispatch_ingestion(background_tasks, doc.id)
     return doc
 
 
@@ -192,7 +204,7 @@ def ingest_url(
     db.add(doc)
     db.commit()
     db.refresh(doc)
-    background_tasks.add_task(run_ingestion, doc.id)
+    _dispatch_ingestion(background_tasks, doc.id)
     return doc
 
 

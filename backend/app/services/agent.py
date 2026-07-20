@@ -156,22 +156,28 @@ happened.
 """
 
 
-def system_prompt(
+def system_prompt_parts(
     role: str,
     has_action_tools: bool,
     summary: str | None = None,
     memories: list[str] | None = None,
-) -> str:
-    """Base + role section + (Phase 8) conversation summary and long-term
-    memory blocks. Memory is context, not instruction — the prompt says use
-    it when relevant, never recite it unprompted."""
-    prompt = SYSTEM_PROMPT + (_ACTIONS_PROMPT if has_action_tools else _NO_ACTIONS_PROMPT)
+) -> tuple[str, str]:
+    """(static, dynamic) halves of the system prompt.
+
+    The static half is identical for every question a given role asks — the
+    Phase 10 prompt-cache prefix. Summary + memories vary per conversation
+    and stay outside the cached block. Memory is context, not instruction —
+    the prompt says use it when relevant, never recite it unprompted."""
+    static = SYSTEM_PROMPT + (
+        _ACTIONS_PROMPT if has_action_tools else _NO_ACTIONS_PROMPT
+    )
+    dynamic = ""
     if summary:
-        prompt += (
+        dynamic += (
             "\nConversation so far (older turns, summarized):\n" + summary + "\n"
         )
     if memories:
-        prompt += (
+        dynamic += (
             "\nLong-term memory — facts stated in earlier conversations by "
             "THE PERSON YOU ARE TALKING TO ('the user' below means them). "
             "Answer their questions about themselves from these facts "
@@ -180,7 +186,17 @@ def system_prompt(
             + "\n".join(f"- {m}" for m in memories)
             + "\n"
         )
-    return prompt
+    return static, dynamic
+
+
+def system_prompt(
+    role: str,
+    has_action_tools: bool,
+    summary: str | None = None,
+    memories: list[str] | None = None,
+) -> str:
+    static, dynamic = system_prompt_parts(role, has_action_tools, summary, memories)
+    return static + dynamic
 
 
 # ── Reflection (Phase 8): critique the draft, retry at most once ────────────
@@ -459,9 +475,24 @@ def initial_state(
     # get_current_user() upstream, never from the client.
     tools = assemble_tools(str(tenant_id), role)
     has_actions = len(tools) > len(TOOL_SCHEMAS)
-    messages: list[BaseMessage] = [
-        SystemMessage(content=system_prompt(role, has_actions, summary, memories))
-    ]
+    static, dynamic = system_prompt_parts(role, has_actions, summary, memories)
+    if get_settings().PROMPT_CACHE_ENABLED:
+        # Anthropic prompt caching: the stable prefix block is marked
+        # ephemeral-cacheable; per-conversation context stays uncached after
+        # it. Cuts repeat input cost on every follow-up question.
+        blocks: list = [
+            {
+                "type": "text",
+                "text": static,
+                "cache_control": {"type": "ephemeral"},
+            }
+        ]
+        if dynamic:
+            blocks.append({"type": "text", "text": dynamic})
+        system_msg = SystemMessage(content=blocks)
+    else:
+        system_msg = SystemMessage(content=static + dynamic)
+    messages: list[BaseMessage] = [system_msg]
     for turn in history:
         cls = HumanMessage if turn["role"] == "user" else AIMessage
         messages.append(cls(content=turn["content"]))

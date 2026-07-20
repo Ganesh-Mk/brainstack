@@ -67,3 +67,21 @@ class InviteInfoResponse(BaseModel):
 class InviteAcceptRequest(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     password: str = Field(min_length=8, max_length=128)
+
+
+class MemberOut(BaseModel):
+    id: uuid.UUID
+    email: EmailStr
+    name: str
+    role: Role
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class MemberRoleUpdate(BaseModel):
+    role: Role
+
+
+class TenantUpdateRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=120)
