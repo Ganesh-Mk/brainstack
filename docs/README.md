@@ -6,7 +6,8 @@
 |---|---|
 | [`PROJECT_IDEA.md`](PROJECT_IDEA.md) | The product: what BrainStack is, who it's for, the feature set. |
 | [`PROJECT_GUIDE.md`](PROJECT_GUIDE.md) | The learning + build guide: every AI concept explained, and the 8-phase backend plan (Part 3). The north star. |
-| [`PHASE_5.md`](PHASE_5.md) | **Current phase** — grounded Q&A with citations + streaming; unlocks Ask BrainStack. |
+| [`PHASE_5.md`](PHASE_5.md) | Phase 5 plan — grounded Q&A. |
+| [`PHASE_5_COMPLETE.md`](PHASE_5_COMPLETE.md) | **Phase 5 shipped** — Ask BrainStack live with streamed, cited answers; checklist inside. |
 
 ## `archive/`
 
@@ -37,7 +38,7 @@ Current mapping:
 | Phase 2 | Backend Phase 0 — Foundation | ✅ live |
 | Phase 3 | Backend Phase 1 — RAG from scratch | ✅ done (`lab/`, all experiments run) |
 | Phase 4 | Backend Phase 2 — real ingestion pipeline | ✅ live (Knowledge unlocked) |
-| Phase 5 | Backend Phase 3 — grounded Q&A + citations + streaming | 🔨 planned |
+| Phase 5 | Backend Phase 3 — grounded Q&A + citations + streaming | ✅ live (Ask unlocked) |
 
 ## The live stack
 
