@@ -9,7 +9,13 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { ButtonLink } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
+import {
+  Reveal,
+  Stagger,
+  StaggerItem,
+  TextReveal,
+  TiltCard,
+} from "@/components/marketing/motion";
 
 export const metadata: Metadata = {
   title: "Security",
@@ -54,34 +60,42 @@ export default function SecurityPage() {
   return (
     <div className="mx-auto max-w-5xl px-6 py-16 lg:py-20">
       <div className="mx-auto max-w-2xl text-center">
-        <p className="text-xs font-semibold tracking-widest text-accent uppercase">
-          Security &amp; trust
-        </p>
-        <h1 className="mt-3 text-4xl font-semibold tracking-tight text-primary lg:text-5xl">
-          Safe by architecture
-        </h1>
-        <p className="mt-4 text-lg leading-8 text-muted">
-          The scariest failure of multi-tenant AI is silent: another
-          company&apos;s data paraphrased into a fluent, confident answer.
-          BrainStack is designed so that failure can&apos;t happen.
-        </p>
+        <Reveal>
+          <p className="text-xs font-semibold tracking-widest text-accent uppercase">
+            Security &amp; trust
+          </p>
+        </Reveal>
+        <TextReveal
+          text="Safe by architecture"
+          accent={["architecture"]}
+          className="mt-3 text-4xl font-semibold tracking-tight text-primary lg:text-5xl"
+        />
+        <Reveal delay={0.2}>
+          <p className="mt-4 text-lg leading-8 text-muted">
+            The scariest failure of multi-tenant AI is silent: another
+            company&apos;s data paraphrased into a fluent, confident answer.
+            BrainStack is designed so that failure can&apos;t happen.
+          </p>
+        </Reveal>
       </div>
 
-      <div className="mt-14 grid gap-5 md:grid-cols-2">
+      <Stagger className="mt-14 grid gap-5 md:grid-cols-2">
         {PILLARS.map((p) => (
-          <Card key={p.title}>
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-on-primary">
-              <p.icon className="h-4.5 w-4.5" />
-            </span>
-            <h2 className="mt-4 text-lg font-semibold text-primary">
-              {p.title}
-            </h2>
-            <p className="mt-2 text-sm leading-7 text-muted">{p.text}</p>
-          </Card>
+          <StaggerItem key={p.title}>
+            <TiltCard className="h-full rounded-2xl border border-border bg-surface p-6 shadow-xs">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-on-primary">
+                <p.icon className="h-4.5 w-4.5" />
+              </span>
+              <h2 className="mt-4 text-lg font-semibold text-primary">
+                {p.title}
+              </h2>
+              <p className="mt-2 text-sm leading-7 text-muted">{p.text}</p>
+            </TiltCard>
+          </StaggerItem>
         ))}
-      </div>
+      </Stagger>
 
-      <div className="mt-14 rounded-3xl border border-border bg-canvas p-10 text-center">
+      <Reveal className="mt-14 rounded-3xl border border-border bg-canvas p-10 text-center">
         <ShieldCheck className="mx-auto h-8 w-8 text-accent" />
         <h2 className="mt-3 text-2xl font-semibold tracking-tight text-primary">
           Have a security question we didn&apos;t answer?
@@ -93,7 +107,7 @@ export default function SecurityPage() {
         <ButtonLink href="/contact" variant="accent" className="mt-6">
           Contact us
         </ButtonLink>
-      </div>
+      </Reveal>
     </div>
   );
 }

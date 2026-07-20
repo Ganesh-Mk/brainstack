@@ -1,7 +1,13 @@
 import type { Metadata } from "next";
 import { Brain, Layers, Search, ShieldCheck } from "lucide-react";
 import { ButtonLink } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
+import {
+  Reveal,
+  Stagger,
+  StaggerItem,
+  TextReveal,
+  TiltCard,
+} from "@/components/marketing/motion";
 
 export const metadata: Metadata = {
   title: "About",
@@ -36,36 +42,44 @@ export default function AboutPage() {
   return (
     <div className="mx-auto max-w-4xl px-6 py-16 lg:py-20">
       <div className="mx-auto max-w-2xl text-center">
-        <p className="text-xs font-semibold tracking-widest text-accent uppercase">
-          About
-        </p>
-        <h1 className="mt-3 text-4xl font-semibold tracking-tight text-primary lg:text-5xl">
-          Companies drown in their own knowledge
-        </h1>
-        <p className="mt-5 text-lg leading-8 text-muted">
-          The answer to almost every question your team asks already exists —
-          in a PDF, a wiki page, a policy doc, a system of record. The problem
-          was never knowledge. It was retrieval. BrainStack is the second brain
-          that finds it, proves it, and — when you&apos;re allowed — acts on
-          it.
-        </p>
+        <Reveal>
+          <p className="text-xs font-semibold tracking-widest text-accent uppercase">
+            About
+          </p>
+        </Reveal>
+        <TextReveal
+          text="Companies drown in their own knowledge"
+          accent={["knowledge"]}
+          className="mt-3 text-4xl font-semibold tracking-tight text-primary lg:text-5xl"
+        />
+        <Reveal delay={0.2}>
+          <p className="mt-5 text-lg leading-8 text-muted">
+            The answer to almost every question your team asks already exists —
+            in a PDF, a wiki page, a policy doc, a system of record. The problem
+            was never knowledge. It was retrieval. BrainStack is the second brain
+            that finds it, proves it, and — when you&apos;re allowed — acts on
+            it.
+          </p>
+        </Reveal>
       </div>
 
-      <div className="mt-14 grid gap-5 sm:grid-cols-2">
+      <Stagger className="mt-14 grid gap-5 sm:grid-cols-2">
         {BELIEFS.map((b) => (
-          <Card key={b.title}>
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-soft text-accent">
-              <b.icon className="h-4.5 w-4.5" />
-            </span>
-            <h2 className="mt-4 text-base font-semibold text-primary">
-              {b.title}
-            </h2>
-            <p className="mt-1.5 text-sm leading-6 text-muted">{b.text}</p>
-          </Card>
+          <StaggerItem key={b.title}>
+            <TiltCard className="h-full rounded-2xl border border-border bg-surface p-6 shadow-xs">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-soft text-accent">
+                <b.icon className="h-4.5 w-4.5" />
+              </span>
+              <h2 className="mt-4 text-base font-semibold text-primary">
+                {b.title}
+              </h2>
+              <p className="mt-1.5 text-sm leading-6 text-muted">{b.text}</p>
+            </TiltCard>
+          </StaggerItem>
         ))}
-      </div>
+      </Stagger>
 
-      <div className="mt-14 rounded-3xl border border-border bg-canvas p-10 text-center">
+      <Reveal className="mt-14 rounded-3xl border border-border bg-canvas p-10 text-center">
         <h2 className="text-2xl font-semibold tracking-tight text-primary">
           Built in the open
         </h2>
@@ -77,7 +91,7 @@ export default function AboutPage() {
         <ButtonLink href="/signup" variant="accent" className="mt-6">
           Start free
         </ButtonLink>
-      </div>
+      </Reveal>
     </div>
   );
 }

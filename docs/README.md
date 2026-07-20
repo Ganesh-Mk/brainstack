@@ -6,9 +6,9 @@
 |---|---|
 | [`PROJECT_IDEA.md`](PROJECT_IDEA.md) | The product: what BrainStack is, who it's for, the feature set. |
 | [`PROJECT_GUIDE.md`](PROJECT_GUIDE.md) | The learning + build guide: every AI concept explained, and the 8-phase backend plan (Part 3). The north star. |
-| [`PHASE_8.md`](PHASE_8.md) | Phase 8 plan — memory & advanced RAG (hybrid retrieval, rerank, reflection, long-term memory). |
-| [`PHASE_8_COMPLETE.md`](PHASE_8_COMPLETE.md) | Phase 8 shipped: retrieval pipeline, both memories, reflection, the reranker-OOM war story. |
-| [`PHASE_9.md`](PHASE_9.md) | **Current phase** — evaluation & observability: golden dataset, LLM judges, query traces, live dashboards. |
+| [`PHASE_8.md`](PHASE_8.md) / [`PHASE_8_COMPLETE.md`](PHASE_8_COMPLETE.md) | Memory & advanced RAG — hybrid retrieval, reflection, both memories; the reranker-OOM war story. |
+| [`PHASE_9.md`](PHASE_9.md) / [`PHASE_9_COMPLETE.md`](PHASE_9_COMPLETE.md) | Evaluation & observability — golden dataset, LLM judges, query traces, the first real numbers. |
+| [`PHASE_10.md`](PHASE_10.md) / [`PHASE_10_COMPLETE.md`](PHASE_10_COMPLETE.md) | Production polish — Celery, rate limiting, Docker Compose, member management, README. |
 
 ## `archive/`
 
@@ -46,7 +46,8 @@ Current mapping:
 | Phase 6 | Backend Phase 4 — the agent (LangGraph) | ✅ live (trace panel + /agent/trace) |
 | Phase 7 | Backend Phase 5 — MCP + RBAC ⭐⭐ | ✅ live (Connections + Tickets + Workforce Analytics unlocked) |
 | Phase 8 | Backend Phase 6 — memory & advanced RAG | ✅ live (Memory unlocked; hybrid retrieval + reflection) |
-| Phase 9 | Backend Phase 7 — evaluation & observability 🏆 | 🔨 building |
+| Phase 9 | Backend Phase 7 — evaluation & observability 🏆 | ✅ live (Dashboard, Analytics, Evaluation, Observability) |
+| Phase 10 | Backend Phase 8 — production polish | ✅ live (Team & Settings real; Celery + compose + rate limits) |
 
 ## The live stack
 

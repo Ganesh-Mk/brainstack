@@ -11,7 +11,6 @@ import {
   FileText,
   Lock,
   MessageSquare,
-  Quote,
   Search,
   ShieldCheck,
   Sparkles,
@@ -20,35 +19,58 @@ import {
   Zap,
 } from "lucide-react";
 import { Hero } from "@/components/marketing/Hero";
-import { TraceTeaser } from "@/components/marketing/TraceTeaser";
+import { StackMarquee } from "@/components/marketing/StackMarquee";
+import { PipelineAnimation } from "@/components/marketing/PipelineAnimation";
+import { AgentGraph } from "@/components/marketing/AgentGraph";
+import { RetrievalVisual } from "@/components/marketing/RetrievalVisual";
+import { EvalNumbers } from "@/components/marketing/EvalNumbers";
+import { MemorySection } from "@/components/marketing/MemorySection";
+import { FaqAccordion } from "@/components/marketing/FaqAccordion";
+import {
+  Reveal,
+  Stagger,
+  StaggerItem,
+  TextReveal,
+  TiltCard,
+} from "@/components/marketing/motion";
 import { ButtonLink } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
 
 export const metadata: Metadata = {
   title: "BrainStack — Your company's second brain, fully stacked",
 };
 
-/* ── Trust strip ─────────────────────────────────────────────────────── */
-function TrustStrip() {
-  const items = [
-    { icon: Building2, label: "Isolated per company" },
-    { icon: Quote, label: "Grounded & cited answers" },
-    { icon: ShieldCheck, label: "Role-based actions" },
-  ];
+/* ── Section heading helper ──────────────────────────────────────────── */
+function SectionHeading({
+  eyebrow,
+  title,
+  accent = [],
+  sub,
+}: {
+  eyebrow: string;
+  title: string;
+  accent?: string[];
+  sub?: string;
+}) {
   return (
-    <section className="border-y border-border bg-canvas">
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-10 gap-y-3 px-6 py-6">
-        {items.map((item) => (
-          <span
-            key={item.label}
-            className="flex items-center gap-2 text-sm font-medium text-muted"
-          >
-            <item.icon className="h-4 w-4 text-accent" />
-            {item.label}
-          </span>
-        ))}
-      </div>
-    </section>
+    <div className="mx-auto max-w-2xl text-center">
+      <Reveal>
+        <p className="text-xs font-semibold tracking-widest text-accent uppercase">
+          {eyebrow}
+        </p>
+      </Reveal>
+      <TextReveal
+        as="h2"
+        text={title}
+        accent={accent}
+        delay={0.08}
+        className="mt-3 text-3xl font-semibold tracking-tight text-primary lg:text-4xl"
+      />
+      {sub && (
+        <Reveal delay={0.2}>
+          <p className="mt-4 text-base leading-7 text-muted">{sub}</p>
+        </Reveal>
+      )}
+    </div>
   );
 }
 
@@ -76,29 +98,47 @@ function HowItWorks() {
   ];
   return (
     <section className="mx-auto max-w-6xl px-6 py-20 lg:py-24">
-      <div className="mx-auto max-w-2xl text-center">
-        <p className="text-xs font-semibold tracking-widest text-accent uppercase">
-          How it works
-        </p>
-        <h2 className="mt-3 text-3xl font-semibold tracking-tight text-primary lg:text-4xl">
-          From documents to decisions in three steps
-        </h2>
-      </div>
-      <div className="mt-12 grid gap-5 md:grid-cols-3">
+      <SectionHeading
+        eyebrow="How it works"
+        title="From documents to decisions in three steps"
+        accent={["three"]}
+      />
+      <Stagger className="mt-12 grid gap-5 md:grid-cols-3">
         {steps.map((s) => (
-          <Card key={s.title} className="relative overflow-hidden">
-            <span className="absolute top-4 right-5 text-4xl font-semibold text-surface-raised select-none">
-              {s.step}
-            </span>
-            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-on-primary shadow-xs">
-              <s.icon className="h-5 w-5" />
-            </span>
-            <h3 className="mt-4 text-lg font-semibold text-primary">
-              {s.title}
-            </h3>
-            <p className="mt-2 text-sm leading-6 text-muted">{s.text}</p>
-          </Card>
+          <StaggerItem key={s.title}>
+            <TiltCard className="relative h-full overflow-hidden rounded-2xl border border-border bg-surface p-6 shadow-xs">
+              <span className="absolute top-4 right-5 text-4xl font-semibold text-surface-raised select-none">
+                {s.step}
+              </span>
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-on-primary shadow-xs">
+                <s.icon className="h-5 w-5" />
+              </span>
+              <h3 className="mt-4 text-lg font-semibold text-primary">
+                {s.title}
+              </h3>
+              <p className="mt-2 text-sm leading-6 text-muted">{s.text}</p>
+            </TiltCard>
+          </StaggerItem>
         ))}
+      </Stagger>
+    </section>
+  );
+}
+
+/* ── Ingestion pipeline ──────────────────────────────────────────────── */
+function PipelineSection() {
+  return (
+    <section className="border-t border-border bg-canvas">
+      <div className="mx-auto max-w-6xl px-6 py-20 lg:py-24">
+        <SectionHeading
+          eyebrow="Knowledge ingestion"
+          title="Watch documents become searchable meaning"
+          accent={["searchable", "meaning"]}
+          sub="Every upload runs a live pipeline — extracted, chunked, embedded and indexed into your company's own private namespace. No black box, no waiting and wondering."
+        />
+        <Reveal delay={0.25} className="mt-14">
+          <PipelineAnimation />
+        </Reveal>
       </div>
     </section>
   );
@@ -107,48 +147,92 @@ function HowItWorks() {
 /* ── The core idea: know vs do ───────────────────────────────────────── */
 function KnowDoSplit() {
   return (
-    <section className="mx-auto max-w-6xl px-6 pb-20 lg:pb-24">
-      <div className="overflow-hidden rounded-3xl border border-border bg-primary text-on-primary shadow-xl">
-        <div className="grid md:grid-cols-2">
-          <div className="border-b border-white/10 p-8 md:border-r md:border-b-0 lg:p-12">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
-              <Search className="h-4.5 w-4.5" />
-            </span>
-            <h3 className="mt-5 text-2xl font-semibold tracking-tight">
-              Retrieval lets it <span className="text-accent-300">know</span>.
-            </h3>
-            <p className="mt-3 text-sm leading-7 text-white/70">
-              Your documents become searchable meaning. Every answer is built
-              strictly from what your company actually knows — and every fact
-              links back to its source page.
-            </p>
-            <p className="mt-4 font-mono text-xs text-white/50">
-              RAG · embeddings · semantic search · citations
-            </p>
+    <section className="mx-auto max-w-6xl px-6 py-20 lg:py-24">
+      <Reveal y={32}>
+        <div className="overflow-hidden rounded-3xl border border-border bg-primary text-on-primary shadow-xl">
+          <div className="grid md:grid-cols-2">
+            <div className="border-b border-white/10 p-8 md:border-r md:border-b-0 lg:p-12">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
+                <Search className="h-4.5 w-4.5" />
+              </span>
+              <h3 className="mt-5 text-2xl font-semibold tracking-tight">
+                Retrieval lets it <span className="text-accent-300">know</span>.
+              </h3>
+              <p className="mt-3 text-sm leading-7 text-white/70">
+                Your documents become searchable meaning. Every answer is built
+                strictly from what your company actually knows — and every fact
+                links back to its source page.
+              </p>
+              <p className="mt-4 font-mono text-xs text-white/50">
+                RAG · embeddings · semantic search · citations
+              </p>
+            </div>
+            <div className="p-8 lg:p-12">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
+                <Cable className="h-4.5 w-4.5" />
+              </span>
+              <h3 className="mt-5 text-2xl font-semibold tracking-tight">
+                Connections let it <span className="text-accent-300">do</span>.
+              </h3>
+              <p className="mt-3 text-sm leading-7 text-white/70">
+                Your ticketing, HR and analytics systems plug in over MCP — an
+                open standard. The agent takes real actions in your tools, gated
+                by each person&apos;s role.
+              </p>
+              <p className="mt-4 font-mono text-xs text-white/50">
+                MCP · tool discovery · role-based access
+              </p>
+            </div>
           </div>
-          <div className="p-8 lg:p-12">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
-              <Cable className="h-4.5 w-4.5" />
-            </span>
-            <h3 className="mt-5 text-2xl font-semibold tracking-tight">
-              Connections let it <span className="text-accent-300">do</span>.
-            </h3>
-            <p className="mt-3 text-sm leading-7 text-white/70">
-              Your ticketing, HR and analytics systems plug in over MCP — an
-              open standard. The agent takes real actions in your tools, gated
-              by each person&apos;s role.
-            </p>
-            <p className="mt-4 font-mono text-xs text-white/50">
-              MCP · tool discovery · role-based access
+          <div className="border-t border-white/10 bg-white/5 px-8 py-4 text-center">
+            <p className="text-sm text-white/60">
+              The brain is one agent. The knowledge and the hands are yours.
             </p>
           </div>
         </div>
-        <div className="border-t border-white/10 bg-white/5 px-8 py-4 text-center">
-          <p className="text-sm text-white/60">
-            The brain is one agent. The knowledge and the hands are yours.
+      </Reveal>
+    </section>
+  );
+}
+
+/* ── Agent anatomy ───────────────────────────────────────────────────── */
+function AgentSection() {
+  return (
+    <section className="border-t border-border bg-canvas">
+      <div className="mx-auto max-w-6xl px-6 py-20 lg:py-24">
+        <SectionHeading
+          eyebrow="No black box"
+          title="Watch it think."
+          accent={["think."]}
+          sub="Every answer is a visible plan, not a mystery. The agent decides what it needs, picks its tools, grounds the draft in real sources, and double-checks itself before a single token reaches your screen."
+        />
+        <Reveal delay={0.25} className="mt-14">
+          <AgentGraph />
+        </Reveal>
+        <Reveal delay={0.1}>
+          <p className="mt-8 text-center text-sm text-muted">
+            This exact trace streams live in the product while the agent works —
+            planning, searching, acting, drafting.
           </p>
-        </div>
+        </Reveal>
       </div>
+    </section>
+  );
+}
+
+/* ── Hybrid retrieval ────────────────────────────────────────────────── */
+function RetrievalSection() {
+  return (
+    <section className="mx-auto max-w-6xl px-6 py-20 lg:py-24">
+      <SectionHeading
+        eyebrow="Advanced retrieval"
+        title="Finds what pure vector search misses"
+        accent={["misses"]}
+        sub="Meaning-based search is brilliant until someone asks about an exact error code or SKU. BrainStack runs dense and keyword retrieval side by side and fuses the rankings — so both kinds of questions land."
+      />
+      <Reveal delay={0.25} className="mt-14">
+        <RetrievalVisual />
+      </Reveal>
     </section>
   );
 }
@@ -207,41 +291,40 @@ const FEATURES = [
 
 function FeatureGrid() {
   return (
-    <section className="mx-auto max-w-6xl px-6 py-20 lg:py-24">
-      <div className="mx-auto max-w-2xl text-center">
-        <p className="text-xs font-semibold tracking-widest text-accent uppercase">
-          The platform
-        </p>
-        <h2 className="mt-3 text-3xl font-semibold tracking-tight text-primary lg:text-4xl">
-          An AI workspace, not a chat box
-        </h2>
-        <p className="mt-4 text-base leading-7 text-muted">
-          The chat is just the entry point. Everything around it — the library,
-          the trace, the citations, the analytics — is what makes it a product
-          your company can trust.
-        </p>
-      </div>
-      <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        {FEATURES.map((f) => (
-          <Card key={f.title} interactive className="p-5">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-soft text-accent">
-              <f.icon className="h-4.5 w-4.5" />
-            </span>
-            <p className="mt-4 text-xs font-semibold tracking-wide text-accent-700 uppercase">
-              {f.category}
-            </p>
-            <h3 className="mt-1 text-base font-semibold text-primary">
-              {f.title}
-            </h3>
-            <p className="mt-1.5 text-sm leading-6 text-muted">{f.text}</p>
-          </Card>
-        ))}
-      </div>
-      <div className="mt-10 text-center">
-        <ButtonLink href="/features" variant="outline">
-          Explore every feature
-          <ArrowRight className="h-4 w-4" />
-        </ButtonLink>
+    <section className="border-t border-border bg-canvas">
+      <div className="mx-auto max-w-6xl px-6 py-20 lg:py-24">
+        <SectionHeading
+          eyebrow="The platform"
+          title="An AI workspace, not a chat box"
+          accent={["workspace,"]}
+          sub="The chat is just the entry point. Everything around it — the library, the trace, the citations, the analytics — is what makes it a product your company can trust."
+        />
+        <Stagger className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          {FEATURES.map((f) => (
+            <StaggerItem key={f.title}>
+              <TiltCard className="h-full rounded-2xl border border-border bg-surface p-5 shadow-xs transition-shadow hover:shadow-lg">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-soft text-accent">
+                  <f.icon className="h-4.5 w-4.5" />
+                </span>
+                <p className="mt-4 text-xs font-semibold tracking-wide text-accent-700 uppercase">
+                  {f.category}
+                </p>
+                <h3 className="mt-1 text-base font-semibold text-primary">
+                  {f.title}
+                </h3>
+                <p className="mt-1.5 text-sm leading-6 text-muted">{f.text}</p>
+              </TiltCard>
+            </StaggerItem>
+          ))}
+        </Stagger>
+        <Reveal delay={0.15}>
+          <div className="mt-10 text-center">
+            <ButtonLink href="/features" variant="outline">
+              Explore every feature
+              <ArrowRight className="h-4 w-4" />
+            </ButtonLink>
+          </div>
+        </Reveal>
       </div>
     </section>
   );
@@ -267,31 +350,41 @@ function SecurityBand() {
     },
   ];
   return (
-    <section className="border-y border-border bg-canvas">
+    <section className="border-t border-border bg-surface">
       <div className="mx-auto max-w-6xl px-6 py-20 lg:py-24">
         <div className="grid items-start gap-12 lg:grid-cols-[1fr_1.4fr]">
           <div>
-            <p className="text-xs font-semibold tracking-widest text-accent uppercase">
-              Security &amp; trust
-            </p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-primary">
-              Built for companies that can&apos;t afford leaks
-            </h2>
-            <p className="mt-4 text-base leading-7 text-muted">
-              Multi-tenant AI has a scary failure mode: someone else&apos;s
-              confidential data paraphrased into a fluent answer. BrainStack is
-              architected so that can&apos;t happen.
-            </p>
-            <ButtonLink href="/security" variant="outline" className="mt-6">
-              Read the security overview
-              <ArrowRight className="h-4 w-4" />
-            </ButtonLink>
+            <Reveal>
+              <p className="text-xs font-semibold tracking-widest text-accent uppercase">
+                Security &amp; trust
+              </p>
+            </Reveal>
+            <TextReveal
+              as="h2"
+              text="Built for companies that can't afford leaks"
+              accent={["leaks"]}
+              delay={0.08}
+              className="mt-3 text-3xl font-semibold tracking-tight text-primary"
+            />
+            <Reveal delay={0.2}>
+              <p className="mt-4 text-base leading-7 text-muted">
+                Multi-tenant AI has a scary failure mode: someone else&apos;s
+                confidential data paraphrased into a fluent answer. BrainStack
+                is architected so that can&apos;t happen.
+              </p>
+            </Reveal>
+            <Reveal delay={0.3}>
+              <ButtonLink href="/security" variant="outline" className="mt-6">
+                Read the security overview
+                <ArrowRight className="h-4 w-4" />
+              </ButtonLink>
+            </Reveal>
           </div>
-          <div className="space-y-4">
+          <Stagger className="space-y-4">
             {points.map((p) => (
-              <div
+              <StaggerItem
                 key={p.title}
-                className="flex items-start gap-4 rounded-2xl border border-border bg-surface p-5 shadow-xs"
+                className="flex items-start gap-4 rounded-2xl border border-border bg-canvas p-5 shadow-xs"
               >
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-on-primary">
                   <p.icon className="h-4.5 w-4.5" />
@@ -302,9 +395,9 @@ function SecurityBand() {
                   </h3>
                   <p className="mt-1 text-sm leading-6 text-muted">{p.text}</p>
                 </div>
-              </div>
+              </StaggerItem>
             ))}
-          </div>
+          </Stagger>
         </div>
       </div>
     </section>
@@ -348,70 +441,73 @@ const TIERS = [
 
 function PricingPreview() {
   return (
-    <section className="mx-auto max-w-6xl px-6 py-20 lg:py-24">
-      <div className="mx-auto max-w-2xl text-center">
-        <p className="text-xs font-semibold tracking-widest text-accent uppercase">
-          Pricing
-        </p>
-        <h2 className="mt-3 text-3xl font-semibold tracking-tight text-primary lg:text-4xl">
-          Start free. Scale when it sticks.
-        </h2>
-      </div>
-      <div className="mt-12 grid gap-5 md:grid-cols-3">
-        {TIERS.map((tier) => (
-          <Card
-            key={tier.name}
-            className={
-              tier.featured
-                ? "relative border-accent shadow-lg"
-                : "relative"
-            }
-          >
-            {tier.featured && (
-              <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-accent px-3 py-0.5 text-xs font-semibold text-on-accent">
-                Most popular
-              </span>
-            )}
-            <h3 className="text-base font-semibold text-primary">
-              {tier.name}
-            </h3>
-            <p className="mt-2 text-3xl font-semibold tracking-tight text-primary">
-              {tier.price}
-              {tier.per && (
-                <span className="text-sm font-normal text-subtle">
-                  {" "}
-                  {tier.per}
-                </span>
-              )}
-            </p>
-            <p className="mt-1 text-sm text-muted">{tier.tagline}</p>
-            <ul className="mt-5 space-y-2.5">
-              {tier.features.map((f) => (
-                <li
-                  key={f}
-                  className="flex items-start gap-2 text-sm text-primary"
+    <section className="border-t border-border bg-canvas">
+      <div className="mx-auto max-w-6xl px-6 py-20 lg:py-24">
+        <SectionHeading
+          eyebrow="Pricing"
+          title="Start free. Scale when it sticks."
+          accent={["free."]}
+        />
+        <Stagger className="mt-12 grid gap-5 md:grid-cols-3">
+          {TIERS.map((tier) => (
+            <StaggerItem key={tier.name} className="h-full">
+              <TiltCard
+                className={
+                  "relative h-full rounded-2xl border bg-surface p-6 " +
+                  (tier.featured
+                    ? "border-accent shadow-lg"
+                    : "border-border shadow-xs")
+                }
+              >
+                {tier.featured && (
+                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-accent px-3 py-0.5 text-xs font-semibold text-on-accent">
+                    Most popular
+                  </span>
+                )}
+                <h3 className="text-base font-semibold text-primary">
+                  {tier.name}
+                </h3>
+                <p className="mt-2 text-3xl font-semibold tracking-tight text-primary">
+                  {tier.price}
+                  {tier.per && (
+                    <span className="text-sm font-normal text-subtle">
+                      {" "}
+                      {tier.per}
+                    </span>
+                  )}
+                </p>
+                <p className="mt-1 text-sm text-muted">{tier.tagline}</p>
+                <ul className="mt-5 space-y-2.5">
+                  {tier.features.map((f) => (
+                    <li
+                      key={f}
+                      className="flex items-start gap-2 text-sm text-primary"
+                    >
+                      <CircleCheck className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                <ButtonLink
+                  href={tier.name === "Enterprise" ? "/contact" : "/signup"}
+                  variant={tier.featured ? "accent" : "outline"}
+                  className="mt-6 w-full"
                 >
-                  <CircleCheck className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
-                  {f}
-                </li>
-              ))}
-            </ul>
-            <ButtonLink
-              href={tier.name === "Enterprise" ? "/contact" : "/signup"}
-              variant={tier.featured ? "accent" : "outline"}
-              className="mt-6 w-full"
-            >
-              {tier.name === "Enterprise" ? "Contact us" : "Get started"}
-            </ButtonLink>
-          </Card>
-        ))}
+                  {tier.name === "Enterprise" ? "Contact us" : "Get started"}
+                </ButtonLink>
+              </TiltCard>
+            </StaggerItem>
+          ))}
+        </Stagger>
+        <Reveal delay={0.2}>
+          <p className="mt-8 text-center text-xs text-subtle">
+            Launch pricing — subject to change before general availability.{" "}
+            <Link href="/pricing" className="font-medium text-accent">
+              Full details →
+            </Link>
+          </p>
+        </Reveal>
       </div>
-      <p className="mt-8 text-center text-xs text-subtle">
-        Launch pricing — subject to change before general availability.{" "}
-        <Link href="/pricing" className="font-medium text-accent">
-          Full details →
-        </Link>
-      </p>
     </section>
   );
 }
@@ -442,31 +538,14 @@ const FAQS = [
 
 function FAQ() {
   return (
-    <section className="border-t border-border bg-canvas">
+    <section className="border-t border-border bg-surface">
       <div className="mx-auto max-w-3xl px-6 py-20 lg:py-24">
-        <div className="text-center">
-          <p className="text-xs font-semibold tracking-widest text-accent uppercase">
-            FAQ
-          </p>
-          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-primary">
-            Questions companies actually ask
-          </h2>
-        </div>
-        <div className="mt-10 space-y-3">
-          {FAQS.map((faq) => (
-            <details
-              key={faq.q}
-              className="group rounded-2xl border border-border bg-surface px-5 shadow-xs open:shadow-md"
-            >
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-4 text-sm font-semibold text-primary [&::-webkit-details-marker]:hidden">
-                {faq.q}
-                <span className="text-subtle transition-transform group-open:rotate-45">
-                  +
-                </span>
-              </summary>
-              <p className="pb-5 text-sm leading-7 text-muted">{faq.a}</p>
-            </details>
-          ))}
+        <SectionHeading
+          eyebrow="FAQ"
+          title="Questions companies actually ask"
+        />
+        <div className="mt-10">
+          <FaqAccordion items={FAQS} />
         </div>
       </div>
     </section>
@@ -477,35 +556,46 @@ function FAQ() {
 function CtaBand() {
   return (
     <section className="mx-auto max-w-6xl px-6 py-20 lg:py-24">
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-tr from-accent-700 via-accent-600 to-accent-500 px-8 py-14 text-center shadow-xl lg:py-16">
-        <div className="bs-dotgrid absolute inset-0 opacity-20" />
-        <div className="relative">
-          <Brain className="mx-auto h-8 w-8 text-white/80" />
-          <h2 className="mt-4 text-3xl font-semibold tracking-tight text-white lg:text-4xl">
-            Give your company a second brain
-          </h2>
-          <p className="mx-auto mt-3 max-w-xl text-base leading-7 text-white/80">
-            Set up a workspace in minutes. Upload knowledge, invite the team,
-            and start asking.
-          </p>
-          <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
-            <ButtonLink
-              href="/signup"
-              size="lg"
-              className="bg-white text-accent-700 hover:bg-white/90"
-            >
-              Start free
-            </ButtonLink>
-            <ButtonLink
-              href="/contact"
-              size="lg"
-              className="border border-white/40 bg-transparent text-white hover:bg-white/10"
-            >
-              Book a demo
-            </ButtonLink>
+      <Reveal y={36}>
+        <div className="bs-gradient-pan relative overflow-hidden rounded-3xl bg-gradient-to-tr from-accent-700 via-accent-600 to-accent-400 px-8 py-14 text-center shadow-xl lg:py-16">
+          <div className="bs-dotgrid absolute inset-0 opacity-20" />
+          <div className="relative">
+            <span className="bs-float inline-block">
+              <Brain className="mx-auto h-9 w-9 text-white/85" />
+            </span>
+            <TextReveal
+              as="h2"
+              text="Give your company a second brain"
+              delay={0.1}
+              className="mt-4 text-3xl font-semibold tracking-tight text-white lg:text-4xl"
+            />
+            <Reveal delay={0.3}>
+              <p className="mx-auto mt-3 max-w-xl text-base leading-7 text-white/80">
+                Set up a workspace in minutes. Upload knowledge, invite the
+                team, and start asking.
+              </p>
+            </Reveal>
+            <Reveal delay={0.42}>
+              <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
+                <ButtonLink
+                  href="/signup"
+                  size="lg"
+                  className="bg-white text-accent-700 hover:bg-white/90"
+                >
+                  Start free
+                </ButtonLink>
+                <ButtonLink
+                  href="/contact"
+                  size="lg"
+                  className="border border-white/40 bg-transparent text-white hover:bg-white/10"
+                >
+                  Book a demo
+                </ButtonLink>
+              </div>
+            </Reveal>
           </div>
         </div>
-      </div>
+      </Reveal>
     </section>
   );
 }
@@ -514,11 +604,15 @@ export default function LandingPage() {
   return (
     <>
       <Hero />
-      <TrustStrip />
+      <StackMarquee />
       <HowItWorks />
+      <PipelineSection />
       <KnowDoSplit />
+      <AgentSection />
+      <RetrievalSection />
+      <EvalNumbers />
       <FeatureGrid />
-      <TraceTeaser />
+      <MemorySection />
       <SecurityBand />
       <PricingPreview />
       <FAQ />

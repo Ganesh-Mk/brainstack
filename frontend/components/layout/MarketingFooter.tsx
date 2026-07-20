@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { BrandMark } from "@/components/brand/BrandMark";
+import { Reveal } from "@/components/marketing/motion";
 
 const COLUMNS: {
   title: string;
@@ -40,7 +41,7 @@ export function MarketingFooter() {
   return (
     <footer className="border-t border-border bg-canvas">
       <div className="mx-auto max-w-6xl px-6 py-14">
-        <div className="grid gap-10 md:grid-cols-[1.4fr_repeat(4,1fr)]">
+        <Reveal y={20} className="grid gap-10 md:grid-cols-[1.4fr_repeat(4,1fr)]">
           <div>
             <BrandMark />
             <p className="mt-3 max-w-xs text-sm leading-6 text-muted">
@@ -72,7 +73,7 @@ export function MarketingFooter() {
               </ul>
             </div>
           ))}
-        </div>
+        </Reveal>
         <div className="mt-12 flex flex-col items-start justify-between gap-3 border-t border-border pt-6 sm:flex-row sm:items-center">
           <p className="text-xs text-subtle">
             © {new Date().getFullYear()} BrainStack. All rights reserved.

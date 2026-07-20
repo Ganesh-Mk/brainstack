@@ -1,7 +1,13 @@
 import type { Metadata } from "next";
 import { CircleCheck, Minus } from "lucide-react";
 import { ButtonLink } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
+import {
+  Reveal,
+  Stagger,
+  StaggerItem,
+  TextReveal,
+  TiltCard,
+} from "@/components/marketing/motion";
 
 export const metadata: Metadata = {
   title: "Pricing",
@@ -62,54 +68,68 @@ export default function PricingPage() {
   return (
     <div className="mx-auto max-w-5xl px-6 py-16 lg:py-20">
       <div className="mx-auto max-w-2xl text-center">
-        <p className="text-xs font-semibold tracking-widest text-accent uppercase">
-          Pricing
-        </p>
-        <h1 className="mt-3 text-4xl font-semibold tracking-tight text-primary lg:text-5xl">
-          Simple, honest, per-workspace
-        </h1>
-        <p className="mt-4 text-lg leading-8 text-muted">
-          Launch pricing while BrainStack rolls out — lock it in early.
-        </p>
+        <Reveal>
+          <p className="text-xs font-semibold tracking-widest text-accent uppercase">
+            Pricing
+          </p>
+        </Reveal>
+        <TextReveal
+          text="Simple, honest, per-workspace"
+          accent={["honest"]}
+          className="mt-3 text-4xl font-semibold tracking-tight text-primary lg:text-5xl"
+        />
+        <Reveal delay={0.2}>
+          <p className="mt-4 text-lg leading-8 text-muted">
+            Launch pricing while BrainStack rolls out — lock it in early.
+          </p>
+        </Reveal>
       </div>
 
-      <div className="mt-12 grid gap-5 md:grid-cols-3">
+      <Stagger className="mt-12 grid gap-5 md:grid-cols-3">
         {TIERS.map((tier) => (
-          <Card
-            key={tier.name}
-            className={tier.featured ? "relative border-accent shadow-lg" : ""}
-          >
-            {tier.featured && (
-              <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-accent px-3 py-0.5 text-xs font-semibold text-on-accent">
-                Most popular
-              </span>
-            )}
-            <h2 className="text-base font-semibold text-primary">
-              {tier.name}
-            </h2>
-            <p className="mt-2 text-3xl font-semibold tracking-tight text-primary">
-              {tier.price}
-              {tier.per && (
-                <span className="text-sm font-normal text-subtle">
-                  {" "}
-                  {tier.per}
+          <StaggerItem key={tier.name}>
+            <TiltCard
+              className={
+                tier.featured
+                  ? "relative h-full rounded-2xl border border-accent bg-surface p-6 shadow-lg"
+                  : "h-full rounded-2xl border border-border bg-surface p-6 shadow-xs"
+              }
+            >
+              {tier.featured && (
+                <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-accent px-3 py-0.5 text-xs font-semibold text-on-accent">
+                  Most popular
                 </span>
               )}
-            </p>
-            <p className="mt-1 text-sm text-muted">{tier.tagline}</p>
-            <ButtonLink
-              href={tier.cta.href}
-              variant={tier.cta.variant}
-              className="mt-6 w-full"
-            >
-              {tier.cta.label}
-            </ButtonLink>
-          </Card>
+              <h2 className="text-base font-semibold text-primary">
+                {tier.name}
+              </h2>
+              <p className="mt-2 text-3xl font-semibold tracking-tight text-primary">
+                {tier.price}
+                {tier.per && (
+                  <span className="text-sm font-normal text-subtle">
+                    {" "}
+                    {tier.per}
+                  </span>
+                )}
+              </p>
+              <p className="mt-1 text-sm text-muted">{tier.tagline}</p>
+              <ButtonLink
+                href={tier.cta.href}
+                variant={tier.cta.variant}
+                className="mt-6 w-full"
+              >
+                {tier.cta.label}
+              </ButtonLink>
+            </TiltCard>
+          </StaggerItem>
         ))}
-      </div>
+      </Stagger>
 
       {/* Comparison matrix */}
-      <div className="mt-14 overflow-x-auto rounded-2xl border border-border bg-surface shadow-xs">
+      <Reveal
+        delay={0.15}
+        className="mt-14 overflow-x-auto rounded-2xl border border-border bg-surface shadow-xs"
+      >
         <table className="w-full min-w-[560px] text-sm">
           <thead className="border-b border-border bg-canvas">
             <tr>
@@ -142,15 +162,17 @@ export default function PricingPage() {
             ))}
           </tbody>
         </table>
-      </div>
+      </Reveal>
 
-      <p className="mt-8 text-center text-sm text-muted">
-        Questions about pricing?{" "}
-        <a href="/contact" className="font-medium text-accent">
-          Talk to us
-        </a>
-        . Launch pricing is subject to change before general availability.
-      </p>
+      <Reveal>
+        <p className="mt-8 text-center text-sm text-muted">
+          Questions about pricing?{" "}
+          <a href="/contact" className="font-medium text-accent">
+            Talk to us
+          </a>
+          . Launch pricing is subject to change before general availability.
+        </p>
+      </Reveal>
     </div>
   );
 }

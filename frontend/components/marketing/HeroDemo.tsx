@@ -33,7 +33,7 @@ import {
   TrendingUp,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/cn";
 
 /* ── Script data ─────────────────────────────────────────────────────── */
@@ -229,34 +229,35 @@ export function HeroDemo() {
   const reduced = useReducedMotion();
   const [idx, setIdx] = useState(0);
   const scenario = SCENARIOS[idx];
-  const [pb, setPb] = useState<Playback>(() =>
-    reduced ? finishedPlayback(SCENARIOS[0]) : initialPlayback(SCENARIOS[0]),
+  const [playing, setPlaying] = useState<Playback>(() =>
+    initialPlayback(SCENARIOS[0]),
   );
-  const cancelled = useRef(false);
+  // Reduced motion shows the finished state — derived at render so it's
+  // right on the first paint, with no playback effect running at all.
+  const pb = reduced ? finishedPlayback(scenario) : playing;
 
   useEffect(() => {
-    if (reduced) {
-      setPb(finishedPlayback(scenario));
-      return;
-    }
-    cancelled.current = false;
+    if (reduced) return;
+    // Cancellation is a per-effect closure flag — a shared ref would get
+    // reset by the next effect run before the old async loop noticed.
+    let cancelled = false;
     const sleep = (ms: number) =>
       new Promise<void>((r) => setTimeout(r, ms));
 
     async function play() {
-      setPb(initialPlayback(scenario));
+      setPlaying(initialPlayback(scenario));
       await sleep(350);
       // 1 — type the question
       for (let c = 1; c <= scenario.question.length; c++) {
-        if (cancelled.current) return;
-        setPb((p) => ({ ...p, typed: c }));
+        if (cancelled) return;
+        setPlaying((p) => ({ ...p, typed: c }));
         await sleep(TYPE_MS);
       }
       await sleep(280);
       // 2 — trace steps, sequentially
       for (let s = 0; s < scenario.steps.length; s++) {
-        if (cancelled.current) return;
-        setPb((p) => ({
+        if (cancelled) return;
+        setPlaying((p) => ({
           ...p,
           stepState: p.stepState.map((v, i) =>
             i < s ? 2 : i === s ? 1 : 0,
@@ -264,32 +265,33 @@ export function HeroDemo() {
         }));
         await sleep(scenario.steps[s].ms);
       }
-      setPb((p) => ({ ...p, stepState: p.stepState.map(() => 2) }));
+      if (cancelled) return;
+      setPlaying((p) => ({ ...p, stepState: p.stepState.map(() => 2) }));
       // 3 — stream the answer
       const units = toUnits(scenario.answer);
       for (let t = 1; t <= units.length; t++) {
-        if (cancelled.current) return;
-        setPb((p) => ({ ...p, tokens: t }));
+        if (cancelled) return;
+        setPlaying((p) => ({ ...p, tokens: t }));
         await sleep(TOKEN_MS);
       }
       // 4 — source card + meta
       if (scenario.source) {
         await sleep(360);
-        if (cancelled.current) return;
-        setPb((p) => ({ ...p, showSource: true }));
+        if (cancelled) return;
+        setPlaying((p) => ({ ...p, showSource: true }));
       }
       await sleep(240);
-      if (cancelled.current) return;
-      setPb((p) => ({ ...p, showMeta: true }));
+      if (cancelled) return;
+      setPlaying((p) => ({ ...p, showMeta: true }));
       // 5 — hold, then advance
       await sleep(HOLD_MS);
-      if (cancelled.current) return;
+      if (cancelled) return;
       setIdx((i) => (i + 1) % SCENARIOS.length);
     }
 
     play();
     return () => {
-      cancelled.current = true;
+      cancelled = true;
     };
   }, [idx, reduced, scenario]);
 

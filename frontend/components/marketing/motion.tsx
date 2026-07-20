@@ -111,6 +111,14 @@ export function StaggerItem({
 /* ── Word-by-word headline reveal ────────────────────────────────────────
    Splits text into words; accent styling via `accents` (exact word match,
    punctuation-insensitive prefix). */
+const MOTION_TAGS = {
+  h1: motion.h1,
+  h2: motion.h2,
+  h3: motion.h3,
+  p: motion.p,
+  span: motion.span,
+} as const;
+
 export function TextReveal({
   text,
   accent = [],
@@ -122,12 +130,12 @@ export function TextReveal({
   /** Words (lowercased, punctuation stripped) to paint text-accent. */
   accent?: string[];
   className?: string;
-  as?: "h1" | "h2" | "h3" | "p" | "span";
+  as?: keyof typeof MOTION_TAGS;
   delay?: number;
 }) {
   const reduced = useReducedMotion();
   const words = text.split(" ");
-  const MotionTag = motion.create(Tag);
+  const MotionTag = MOTION_TAGS[Tag];
   return (
     <MotionTag
       className={className}
@@ -200,23 +208,21 @@ export function CountUp({
   const ref = useRef<HTMLSpanElement>(null);
   const inView = useInView(ref, { once: true, margin: "-40px" });
   const reduced = useReducedMotion();
-  const [display, setDisplay] = useState(
-    reduced ? value.toFixed(decimals) : (0).toFixed(decimals),
-  );
+  const [animated, setAnimated] = useState((0).toFixed(decimals));
 
   useEffect(() => {
-    if (!inView) return;
-    if (reduced) {
-      setDisplay(value.toFixed(decimals));
-      return;
-    }
+    if (!inView || reduced) return;
     const controls = animate(0, value, {
       duration,
       ease: EASE,
-      onUpdate: (v) => setDisplay(v.toFixed(decimals)),
+      onUpdate: (v) => setAnimated(v.toFixed(decimals)),
     });
     return () => controls.stop();
   }, [inView, value, decimals, duration, reduced]);
+
+  // Reduced motion shows the final figure immediately — derived, not an
+  // effect, so it's correct on the very first paint.
+  const display = reduced ? value.toFixed(decimals) : animated;
 
   return (
     <span ref={ref} className={className}>
@@ -307,49 +313,4 @@ export function Marquee({
       </div>
     </div>
   );
-}
-
-/* ── Typewriter ──────────────────────────────────────────────────────────
-   Types `text` character-by-character once in view. onDone fires after a
-   short settle. Reduced motion renders instantly. */
-export function useTypewriter(
-  text: string,
-  {
-    speed = 28,
-    startDelay = 0,
-    enabled = true,
-  }: { speed?: number; startDelay?: number; enabled?: boolean } = {},
-) {
-  const reduced = useReducedMotion();
-  const [count, setCount] = useState(reduced ? text.length : 0);
-  const [done, setDone] = useState(!!reduced);
-
-  useEffect(() => {
-    if (!enabled) return;
-    if (reduced) {
-      setCount(text.length);
-      setDone(true);
-      return;
-    }
-    setCount(0);
-    setDone(false);
-    let i = 0;
-    let interval: ReturnType<typeof setInterval> | undefined;
-    const start = setTimeout(() => {
-      interval = setInterval(() => {
-        i += 1;
-        setCount(i);
-        if (i >= text.length) {
-          if (interval) clearInterval(interval);
-          setDone(true);
-        }
-      }, speed);
-    }, startDelay);
-    return () => {
-      clearTimeout(start);
-      if (interval) clearInterval(interval);
-    };
-  }, [text, speed, startDelay, enabled, reduced]);
-
-  return { visible: text.slice(0, count), done };
 }

@@ -3,7 +3,10 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci
+# npm install, not npm ci: the lockfile is generated on Windows, and npm
+# omits linux-musl-only optional deps (@emnapi/*) from it — a known npm
+# cross-platform gap that makes `npm ci` fail inside the container.
+RUN npm install --no-audit --no-fund
 COPY . .
 ARG NEXT_PUBLIC_API_URL
 ARG NEXT_PUBLIC_ROOT_DOMAIN=localhost:3000

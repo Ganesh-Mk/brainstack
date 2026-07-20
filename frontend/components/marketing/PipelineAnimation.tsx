@@ -17,7 +17,7 @@ import {
   Upload,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/cn";
 
 type Stage = {
@@ -75,11 +75,11 @@ export function PipelineAnimation() {
   const [count, setCount] = useState(reduced ? COUNT_TARGET : 0);
   const [ready, setReady] = useState(!!reduced);
   const [cycle, setCycle] = useState(0);
-  const cancelled = useRef(false);
 
   useEffect(() => {
     if (reduced) return;
-    cancelled.current = false;
+    // Per-effect closure flag — see HeroDemo for why not a shared ref.
+    let cancelled = false;
     const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
     async function run() {
@@ -87,13 +87,13 @@ export function PipelineAnimation() {
       setCount(0);
       setReady(false);
       for (let i = 0; i < STAGES.length; i++) {
-        if (cancelled.current) return;
+        if (cancelled) return;
         setActive(i);
         if (i === STAGES.length - 1) {
           // count chunks while indexing
           const step = STAGES[i].ms / COUNT_TARGET;
           for (let c = 0; c <= COUNT_TARGET; c += 6) {
-            if (cancelled.current) return;
+            if (cancelled) return;
             setCount(Math.min(c, COUNT_TARGET));
             await sleep(step * 6);
           }
@@ -102,17 +102,17 @@ export function PipelineAnimation() {
           await sleep(STAGES[i].ms);
         }
       }
-      if (cancelled.current) return;
+      if (cancelled) return;
       setActive(STAGES.length);
       setReady(true);
       await sleep(HOLD_MS);
-      if (cancelled.current) return;
+      if (cancelled) return;
       setCycle((c) => c + 1);
     }
 
     run();
     return () => {
-      cancelled.current = true;
+      cancelled = true;
     };
   }, [cycle, reduced]);
 

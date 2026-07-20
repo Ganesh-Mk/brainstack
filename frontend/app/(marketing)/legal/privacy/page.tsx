@@ -1,19 +1,25 @@
 import type { Metadata } from "next";
+import { Reveal } from "@/components/marketing/motion";
 
 export const metadata: Metadata = { title: "Privacy Policy" };
 
 export default function PrivacyPage() {
   return (
     <div className="mx-auto max-w-3xl px-6 py-16 lg:py-20">
-      <p className="text-xs font-semibold tracking-widest text-accent uppercase">
-        Legal
-      </p>
-      <h1 className="mt-3 text-4xl font-semibold tracking-tight text-primary">
-        Privacy Policy
-      </h1>
-      <p className="mt-2 text-sm text-subtle">Last updated: July 2026</p>
+      <Reveal>
+        <p className="text-xs font-semibold tracking-widest text-accent uppercase">
+          Legal
+        </p>
+        <h1 className="mt-3 text-4xl font-semibold tracking-tight text-primary">
+          Privacy Policy
+        </h1>
+        <p className="mt-2 text-sm text-subtle">Last updated: July 2026</p>
+      </Reveal>
 
-      <div className="mt-10 space-y-8 text-sm leading-7 text-muted [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:text-primary">
+      <Reveal
+        delay={0.15}
+        className="mt-10 space-y-8 text-sm leading-7 text-muted [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:text-primary"
+      >
         <section>
           <h2>The short version</h2>
           <p className="mt-2">
@@ -69,7 +75,7 @@ export default function PrivacyPage() {
           platform while it is in staged rollout, and will be finalized with
           counsel before general availability.
         </p>
-      </div>
+      </Reveal>
     </div>
   );
 }
