@@ -23,5 +23,10 @@ fastembed==0.8.0
 # grounded Q&A (Phase 5)
 anthropic==0.117.0
 
+# the agent (Phase 6)
+langgraph==1.2.9
+langchain-anthropic==1.4.8
+tavily-python==0.7.26
+
 # tests
 pytest==9.1.1
