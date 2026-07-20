@@ -12,7 +12,7 @@
 
 ## Part A — What was built
 
-Everything from `PHASE_1.md`, end to end. The app lives in **`web/`** —
+Everything from `PHASE_1.md`, end to end. The app lives in **`frontend/`** —
 one Next.js 16 app (TypeScript, Tailwind v4, App Router) serving both the
 marketing site and the platform shell.
 
@@ -23,7 +23,7 @@ key route returns 200 with real content, the settings redirect works, and the
 host-based subdomain routing was tested against all three domain cases
 (apex, `app.`, `www.`).
 
-### 1. The global design system ⭐ (`web/app/globals.css`)
+### 1. The global design system ⭐ (`frontend/app/globals.css`)
 
 Exactly what you asked for — **semantic names, dynamic values**:
 
@@ -49,7 +49,7 @@ Exactly what you asked for — **semantic names, dynamic values**:
   disabled under `prefers-reduced-motion`), thin modern scrollbars, dot-grid
   backdrops.
 
-### 2. The single IA registry (`web/lib/nav.ts`)
+### 2. The single IA registry (`frontend/lib/nav.ts`)
 
 Every route in the product declares its label, icon, group, **lock state**,
 **RBAC roles**, and **which backend phase unlocks it** — in one file. The
@@ -125,7 +125,7 @@ mock.
   and preview deploys work from a single origin. All three host cases
   smoke-tested with real requests.
 - **Env files:**
-  - `web/.env.example` (committed) + `web/.env.local` — frontend vars.
+  - `frontend/.env.example` (committed) + `frontend/.env.local` — frontend vars.
   - **`.env` at the repo root (gitignored) + `.env.example` (committed)** —
     the **master template with every variable name** for all future backend
     phases: Anthropic, OpenAI, Pinecone, Supabase (`DATABASE_URL` etc.),
@@ -141,7 +141,7 @@ mock.
 ### ✅ Done 1 — Live on Vercel
 
 - Project **`brainstack`** imported from `Ganesh-Mk/brainstack` with
-  **Root Directory = `web`**; production deployment green
+  **Root Directory = `frontend`**; production deployment green
   (`brainstack-swart.vercel.app`).
 
 ### ✅ Done 2 — Domain attached (GoDaddy → Vercel)
@@ -212,7 +212,7 @@ Open `http://localhost:3000` — the landing page. Then:
 - [x] Kyro-grade visual consistency (compact, hairline borders, rounded-2xl, quiet motion)
 - [x] ⌘K palette jumps to any page; subdomain routing verified for prod and dev
 - [x] Env scaffolding ready (Supabase + all backend keys templated in `.env`)
-- [x] **You:** Vercel import (Root Directory = `web`) — deployed ✅
+- [x] **You:** Vercel import (Root Directory = `frontend`) — deployed ✅
 - [x] **You:** DNS records at GoDaddy — all four routing cases verified live ✅
 - [x] **Bonus:** Supabase, Anthropic, OpenAI and Pinecone keys gathered and
       connection-tested ahead of schedule ✅

@@ -175,7 +175,7 @@ brainstack/                          ← (this repo)
 │   ├── PHASE_1.md                   ← this file
 │   └── PHASE_1_COMPLETE.md
 │
-└── web/                             ← the Next.js product (Phase 1 lives here)
+└── frontend/                             ← the Next.js product (Phase 1 lives here)
     ├── middleware.ts                ← host-based subdomain routing
     ├── next.config.ts
     ├── tailwind / postcss config
@@ -769,7 +769,7 @@ SUPABASE_ANON_KEY=...
 
 Do it in this order — each step is independently reviewable via a Vercel preview URL.
 
-1. **Scaffold.** `web/` Next.js + TS + Tailwind v4 + shadcn init. Self-host Inter via `next/font`.
+1. **Scaffold.** `frontend/` Next.js + TS + Tailwind v4 + shadcn init. Self-host Inter via `next/font`.
 2. **Design tokens.** Write `app/globals.css` `@theme` (§6.2). This comes *first* — everything
    consumes it.
 3. **Core `ui/` primitives.** Button, Card, Badge, Input, Modal, Tabs, Table, Toast, Skeleton,

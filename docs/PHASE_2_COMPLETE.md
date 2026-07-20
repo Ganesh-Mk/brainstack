@@ -10,7 +10,7 @@
 
 ## Part A — What was built
 
-A new **`api/`** FastAPI backend (Python 3.12), plus auth wiring in `web/`.
+A new **`backend/`** FastAPI backend (Python 3.12), plus auth wiring in `frontend/`.
 
 **Verified before writing this report:**
 - `pytest` — **9/9 green** (auth, tenant isolation, invites, RBAC).
@@ -22,7 +22,7 @@ A new **`api/`** FastAPI backend (Python 3.12), plus auth wiring in `web/`.
   dim 384) and a test vector round-tripped (upsert → query score 1.0 →
   delete). **PASS.**
 
-### 1. The backend (`api/`)
+### 1. The backend (`backend/`)
 
 - **Config** (`app/config.py`) — `pydantic-settings` reads the **repo-root
   `.env`** (one master env for the whole project; extra keys ignored).
@@ -47,14 +47,14 @@ A new **`api/`** FastAPI backend (Python 3.12), plus auth wiring in `web/`.
   /auth/invites/{token}`, `POST /auth/invites/{token}/accept`. CORS allows
   localhost:3000 + the three production domains.
 
-### 2. Tests (`api/tests/`)
+### 2. Tests (`backend/tests/`)
 
 SQLite-backed, hermetic (same models run on Postgres in prod). Covers: tenant
 + admin creation, login/`me`, duplicate-email 409, wrong-password 401,
 missing/garbage token 401, **two-tenant isolation**, full invite flow with
 one-time enforcement, non-admin invite 403, password-length 422.
 
-### 3. Frontend wiring (`web/`) — same UI, now real
+### 3. Frontend wiring (`frontend/`) — same UI, now real
 
 - **`lib/api.ts`** — typed fetch client. **Demo-mode contract:**
   `isBackendConfigured` is false when `NEXT_PUBLIC_API_URL` is empty, and the
@@ -79,11 +79,11 @@ one-time enforcement, non-admin invite 403, password-length 422.
 ### ▶️ Run it locally (2 terminals)
 
 ```bash
-# 1) API  (from api/)
+# 1) API  (from backend/)
 .venv/Scripts/python -m uvicorn app.main:app --reload --port 8000
 #    → http://localhost:8000/docs   /health shows {db: ok, redis: ok}
 
-# 2) Web  (from web/)  — .env.local already has NEXT_PUBLIC_API_URL=http://localhost:8000
+# 2) Web  (from frontend/)  — .env.local already has NEXT_PUBLIC_API_URL=http://localhost:8000
 npm run dev
 #    → http://localhost:3000
 ```
@@ -102,8 +102,8 @@ invites lands when Team & Roles unlocks; the endpoint + accept flow work now.)*
 
 Vercel can't host FastAPI. When you want the **live** site's login to be real:
 
-1. Deploy `api/` to **Render** (free) or Railway — start command
-   `uvicorn app.main:app --host 0.0.0.0 --port $PORT`, root dir `api`,
+1. Deploy `backend/` to **Render** (free) or Railway — start command
+   `uvicorn app.main:app --host 0.0.0.0 --port $PORT`, root dir `backend`,
    env = the root `.env` values.
 2. GoDaddy: add **CNAME `api`** → the host they give you (same 2-min drill as
    `app`). Add `https://api.brainstack.space` to CORS in `app/config.py`.
@@ -115,7 +115,7 @@ Vercel can't host FastAPI. When you want the **live** site's login to be real:
 ### Nothing to sign up for
 
 Every credential this phase used is already in the root `.env` and tested
-(Supabase, Redis, Pinecone). `NEXT_PUBLIC_API_URL` in `web/.env.local` is set
+(Supabase, Redis, Pinecone). `NEXT_PUBLIC_API_URL` in `frontend/.env.local` is set
 to `http://localhost:8000` for local dev.
 
 ---
@@ -132,4 +132,4 @@ to `http://localhost:8000` for local dev.
 **Phase 2 is wrapped.** Next: `PROJECT_GUIDE.md` **Backend Phase 1 —
 "RAG from scratch, in a script"** (the most important learning phase — raw
 embeddings, chunking, cosine similarity by hand, then Pinecone). No FastAPI,
-no frontend; one Python script in `api/` or a new `lab/` folder.
+no frontend; one Python script in `backend/` or a new `lab/` folder.

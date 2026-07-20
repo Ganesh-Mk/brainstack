@@ -7,7 +7,7 @@ the spec and `../docs/PROJECT_GUIDE.md` Part 3 for the roadmap.
 
 ## Setup
 
-Reads the **repo-root `.env`** (shared master env). No separate api/.env.
+Reads the **repo-root `.env`** (shared master env). No separate backend/.env.
 
 ```bash
 python -m venv .venv

@@ -55,8 +55,8 @@ password hashing · `PyJWT` for tokens · `pytest` + `httpx` for tests ·
 ```
 brainstack/
 ├── docs/                            ← you are here
-├── web/                             ← Phase 1 (unchanged except auth wiring)
-└── api/                             ← NEW — the FastAPI backend
+├── frontend/                             ← Phase 1 (unchanged except auth wiring)
+└── backend/                             ← NEW — the FastAPI backend
     ├── requirements.txt
     ├── alembic.ini
     ├── alembic/                     ← migrations (autogenerate + review)
@@ -130,9 +130,9 @@ project's most important architectural rule (PROJECT_GUIDE.md §Phase 0).
 
 ---
 
-## 6. Frontend wiring (the only `web/` changes)
+## 6. Frontend wiring (the only `frontend/` changes)
 
-- **`web/lib/api.ts`** (new) — tiny fetch wrapper: reads
+- **`frontend/lib/api.ts`** (new) — tiny fetch wrapper: reads
   `NEXT_PUBLIC_API_URL`, attaches the Bearer token, one typed helper per
   endpoint, throws typed errors the forms can show.
 - **`stores/session.ts`** — becomes real: persists `{token, user, tenant,
@@ -155,7 +155,7 @@ project's most important architectural rule (PROJECT_GUIDE.md §Phase 0).
 
 ## 7. Tests (the definition of done, executable)
 
-`pytest api/tests/test_auth.py` against a throwaway schema:
+`pytest backend/tests/test_auth.py` against a throwaway schema:
 
 1. Signup Acme → login works, `/auth/me` returns role `admin`, tenant Acme.
 2. Signup Globex → its admin sees tenant Globex.
@@ -166,7 +166,7 @@ project's most important architectural rule (PROJECT_GUIDE.md §Phase 0).
 
 ---
 
-## 8. Pinecone smoke test (`api/scripts/pinecone_smoke.py`)
+## 8. Pinecone smoke test (`backend/scripts/pinecone_smoke.py`)
 
 Per the guide: create the **`brainstack`** index (serverless, cosine,
 dimension **384** = `all-MiniLM-L6-v2`, our dev embedding model), then
@@ -178,7 +178,7 @@ any AI phase needs them.
 
 ## 9. Build order
 
-1. **Scaffold** — `api/` venv, requirements, config from root `.env`, `db.py`,
+1. **Scaffold** — `backend/` venv, requirements, config from root `.env`, `db.py`,
    `GET /health` green against Supabase + Upstash.
 2. **Models + Alembic** — the five tables; `alembic upgrade head` creates them
    in Supabase; verify in the Supabase table editor.
