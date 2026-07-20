@@ -28,5 +28,8 @@ langgraph==1.2.9
 langchain-anthropic==1.4.8
 tavily-python==0.7.26
 
+# MCP client (Phase 7) — the agent's external boundary
+mcp==1.28.1
+
 # tests
 pytest==9.1.1

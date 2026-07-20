@@ -29,7 +29,7 @@ class SourceOut(BaseModel):
 
 class TraceStep(BaseModel):
     n: int
-    kind: Literal["planning", "knowledge", "web", "drafting"]
+    kind: Literal["planning", "knowledge", "web", "action", "drafting"]
     label: str
     detail: str | None = None
     ms: int | None = None

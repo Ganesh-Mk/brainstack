@@ -213,7 +213,9 @@ def ask(
             history = chat.history_messages(
                 session, convo_id, get_settings().CHAT_HISTORY_TURNS
             )
-            state = agent.initial_state(tenant_id, question, history)
+            state = agent.initial_state(
+                tenant_id, question, history, role=current.role
+            )
 
             answer_parts: list[str] = []
             sources: list[dict] = []

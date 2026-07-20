@@ -70,10 +70,43 @@ export type ApiSource = {
 
 export type ApiTraceStep = {
   n: number;
-  kind: "planning" | "knowledge" | "web" | "drafting";
+  kind: "planning" | "knowledge" | "web" | "action" | "drafting";
   label: string;
   detail?: string | null;
   ms?: number | null;
+};
+
+// ── Company systems (Phase 7 · MCP + RBAC) ─────────────────────────────────
+
+export type ApiConnections = {
+  server: string;
+  transport: string;
+  configured: boolean;
+  role: Role;
+  /** Whether this session's ROLE gets the company tools at all. */
+  capable: boolean;
+  /** True when the tools were actually discovered for this session. */
+  connected: boolean;
+  tools: { name: string; description: string }[];
+};
+
+export type ApiTicket = {
+  id: string;
+  key: string;
+  title: string;
+  status: "open" | "in_progress" | "closed";
+  assignee: string | null;
+  priority: "high" | "medium" | "low";
+  updated_at: string;
+};
+
+export type ApiWorkforceRow = {
+  name: string;
+  title: string;
+  open: number;
+  in_progress: number;
+  closed_this_month: number;
+  avg_resolution_hours: number;
 };
 
 export type ApiMessage = {
@@ -235,6 +268,17 @@ export const api = {
 
   deleteConversation: (token: string, id: string) =>
     request<void>(`/conversations/${id}`, { method: "DELETE", token }),
+
+  // ── Company systems (MCP) ────────────────────────────────────────────────
+
+  connections: (token: string) =>
+    request<ApiConnections>("/connections", { token }),
+
+  companyTickets: (token: string) =>
+    request<{ tickets: ApiTicket[] }>("/company/tickets", { token }),
+
+  companyAnalytics: (token: string) =>
+    request<{ analytics: ApiWorkforceRow[] }>("/company/analytics", { token }),
 };
 
 export type AskHandlers = {

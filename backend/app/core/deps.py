@@ -59,3 +59,15 @@ def require_admin(current: CurrentUser = Depends(get_current_user)) -> CurrentUs
             status_code=status.HTTP_403_FORBIDDEN, detail="Admin role required"
         )
     return current
+
+
+def require_manager(current: CurrentUser = Depends(get_current_user)) -> CurrentUser:
+    """Manager OR admin — the roles whose sessions get company-action
+    capability (Phase 7). Employees get a 403 here; in the agent they get
+    less than that — the tools never exist."""
+    if current.role not in ("manager", "admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Manager or admin role required",
+        )
+    return current

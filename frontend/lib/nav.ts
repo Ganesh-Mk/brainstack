@@ -149,9 +149,8 @@ export const APP_NAV: NavItem[] = [
     href: "/connections",
     icon: Cable,
     group: "Operations",
-    locked: true,
+    locked: false,
     roles: ["manager", "admin"],
-    unlocksIn: "Backend Phase 5 · MCP + RBAC",
     blurb:
       "Your company systems, connected over MCP — discovered tools, transport and role gating.",
   },
@@ -160,9 +159,8 @@ export const APP_NAV: NavItem[] = [
     href: "/actions/tickets",
     icon: Ticket,
     group: "Operations",
-    locked: true,
+    locked: false,
     roles: ["manager", "admin"],
-    unlocksIn: "Backend Phase 5 · MCP + RBAC",
     blurb:
       "Real actions in your ticketing system — assign, reassign and track, straight from chat.",
   },
@@ -171,9 +169,8 @@ export const APP_NAV: NavItem[] = [
     href: "/actions/analytics",
     icon: ChartColumn,
     group: "Operations",
-    locked: true,
+    locked: false,
     roles: ["manager", "admin"],
-    unlocksIn: "Backend Phase 5 · MCP + RBAC",
     blurb:
       "Team workload and resolution metrics, pulled live from your company systems via MCP.",
   },

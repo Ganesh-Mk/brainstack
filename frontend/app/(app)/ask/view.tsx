@@ -209,8 +209,12 @@ export function AskView() {
     setActiveCitation(null);
     setPanelTab("trace"); // watch the agent think; evidence lands after
 
+    let sawSources = false; // action-only answers have none — keep the trace up
     await streamAsk(token, convoId, question, {
-      onSources: (sources) => setLiveSources(sources),
+      onSources: (sources) => {
+        sawSources = sawSources || sources.length > 0;
+        setLiveSources(sources);
+      },
       onTrace: (step) => setLiveTrace((prev) => [...prev, step]),
       onDelta: (text) => setLiveText((prev) => prev + text),
       onDone: () => {
@@ -218,7 +222,7 @@ export function AskView() {
         setPendingQuestion(null);
         setLiveText("");
         setLiveSources(null);
-        setPanelTab("sources");
+        setPanelTab(sawSources ? "sources" : "trace");
         void openConversation(convoId);
         void loadConversations();
       },

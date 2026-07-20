@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Globe, MessagesSquare, Search, Sparkles } from "lucide-react";
+import { Globe, MessagesSquare, Search, Sparkles, Zap } from "lucide-react";
 import {
   api,
   type ApiMessage,
@@ -27,6 +27,19 @@ type TraceEntry = {
 };
 
 const DEMO_ENTRIES: TraceEntry[] = [
+  {
+    id: "demo-action",
+    question: "Assign the login-bug ticket to Priya and show her workload",
+    conversationTitle: "Ticket triage",
+    trace: [
+      { n: 1, kind: "planning", label: "Planning" },
+      { n: 2, kind: "action", label: "Company MCP · assign_ticket", detail: "ticket_key: login-bug, assignee: Priya", ms: 610 },
+      { n: 3, kind: "action", label: "Company MCP · get_analytics", detail: "employee: Priya", ms: 240 },
+      { n: 4, kind: "planning", label: "Reviewing results" },
+      { n: 5, kind: "drafting", label: "Drafting the answer", ms: 2100 },
+    ],
+    created_at: new Date(Date.now() - 1500e3).toISOString(),
+  },
   {
     id: "demo",
     question: "Compare our refund policy with what competitors offer",
@@ -96,6 +109,11 @@ export function AgentTraceView() {
         {used.has("web") && (
           <Badge variant="accent">
             <Globe className="h-3 w-3" /> Web
+          </Badge>
+        )}
+        {used.has("action") && (
+          <Badge variant="warning">
+            <Zap className="h-3 w-3" /> Action
           </Badge>
         )}
       </span>

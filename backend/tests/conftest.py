@@ -11,8 +11,22 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.config import get_settings
 from app.db import Base, get_db
 from app.main import app
+from app.services import mcp_client
+
+
+@pytest.fixture(autouse=True)
+def no_mcp_by_default(monkeypatch):
+    """Tests never talk to a live Company MCP service: unconfigure it and
+    clear the discovery cache. Tests that WANT it set these attrs + mocks."""
+    settings = get_settings()
+    monkeypatch.setattr(settings, "COMPANY_MCP_URL", "")
+    monkeypatch.setattr(settings, "MCP_SHARED_SECRET", "")
+    mcp_client.reset_cache()
+    yield
+    mcp_client.reset_cache()
 
 
 @pytest.fixture

@@ -5,6 +5,7 @@ import {
   Globe,
   PenLine,
   Search,
+  Zap,
   type LucideIcon,
 } from "lucide-react";
 import type { ApiTraceStep } from "@/lib/api";
@@ -17,6 +18,8 @@ const KIND_META: Record<
   planning: { icon: Brain, tint: "text-muted" },
   knowledge: { icon: Search, tint: "text-accent" },
   web: { icon: Globe, tint: "text-accent" },
+  // An action step MUTATES a company system — visually distinct from reads.
+  action: { icon: Zap, tint: "text-warning" },
   drafting: { icon: PenLine, tint: "text-success" },
 };
 

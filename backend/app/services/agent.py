@@ -12,6 +12,12 @@ but now with:
 
 The tool DESCRIPTIONS are the router. When the agent searches the web for
 internal policy, fix the description, not the loop (PROJECT_GUIDE §Phase 4).
+
+Phase 7 — the external boundary is MCP, and RBAC works by CAPABILITY:
+assemble_tools() merges the Company MCP Server's tools into the list only for
+manager/admin sessions. An employee's agent never connects — assign_ticket
+does not exist in their session, absent by construction, not blocked by a
+prompt. (The server re-validates role per call anyway: defense in depth.)
 """
 
 from __future__ import annotations
@@ -34,18 +40,20 @@ from langgraph.graph.message import add_messages
 
 from app import db as app_db
 from app.config import get_settings
-from app.services import chat
+from app.services import chat, mcp_client
 
 
 class AgentState(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages]
     tenant_id: str
+    role: str
+    tool_schemas: list[dict]  # assembled per session by capability (RBAC)
     sources: list[dict]  # chat.Source dicts, numbered contiguously
     steps_used: int
     trace: list[dict]
 
 
-# ── Tools (schemas only — execution is ours, in the tools node) ─────────────
+# ── Native tools (schemas only — execution is ours, in the tools node) ──────
 
 TOOL_SCHEMAS = [
     {
@@ -86,6 +94,21 @@ TOOL_SCHEMAS = [
     },
 ]
 
+ACTION_ROLES = ("manager", "admin")
+
+
+def assemble_tools(tenant_id: str, role: str) -> list[dict]:
+    """The capability layer — THE RBAC mechanism of this codebase.
+
+    Everyone gets the native tools. Only manager/admin sessions get the
+    Company MCP tools discovered and merged; for an employee no connection
+    is even made — the tools don't exist in their session."""
+    tools = list(TOOL_SCHEMAS)
+    if role in ACTION_ROLES:
+        tools += mcp_client.discover_tools(tenant_id, role)
+    return tools
+
+
 SYSTEM_PROMPT = """You are BrainStack, a company knowledge assistant with tools.
 
 Routing rules:
@@ -106,6 +129,33 @@ Behavior rules, follow exactly:
 4. Be concise. Plain markdown: short paragraphs, bold key figures, dash lists
    where they help. No headings, no preamble.
 """
+
+# Appended for manager/admin sessions that have the Company tools merged.
+_ACTIONS_PROMPT = """
+Company systems (tickets, workforce analytics) are connected to this session.
+- Requests to assign/reassign tickets, list tickets, or report on an
+  employee's workload -> use those company tools directly. Confirm what you
+  DID (past tense, from the tool result) — never claim an action you didn't
+  perform.
+- Action results are facts from the company system; report them without
+  bracketed citations (citations are for documents and web sources only).
+- If a company tool returns an error message, relay it plainly and suggest
+  the fix it mentions.
+"""
+
+# Appended for sessions WITHOUT action tools, so refusals are informative
+# rather than hallucinated.
+_NO_ACTIONS_PROMPT = """
+This session has no access to the company's ticketing or workforce systems —
+those actions are available to manager and admin accounts only. If asked to
+assign tickets or report workloads, say you can't do that from this account
+in one polite sentence; a manager or admin can. Never pretend an action
+happened.
+"""
+
+
+def system_prompt(role: str, has_action_tools: bool) -> str:
+    return SYSTEM_PROMPT + (_ACTIONS_PROMPT if has_action_tools else _NO_ACTIONS_PROMPT)
 
 
 # ── Tool implementations ────────────────────────────────────────────────────
@@ -184,7 +234,7 @@ def agent_node(state: AgentState) -> dict:
         api_key=settings.ANTHROPIC_API_KEY,
         max_tokens=settings.CHAT_MAX_TOKENS,
         streaming=True,
-    ).bind_tools(TOOL_SCHEMAS)
+    ).bind_tools(state.get("tool_schemas") or TOOL_SCHEMAS)
     response = llm.invoke(state["messages"])
     return {"messages": [response], "trace": state["trace"] + [trace_step]}
 
@@ -199,28 +249,40 @@ def tools_node(state: AgentState) -> dict:
     tool_messages: list[ToolMessage] = []
 
     for call in last.tool_calls:
-        query = str(call["args"].get("query", ""))[:300]
-        kind = "knowledge" if call["name"] == "search_knowledge" else "web"
         t0 = time.perf_counter()
         if call["name"] == "search_knowledge":
+            detail = str(call["args"].get("query", ""))[:300]
+            kind, label = "knowledge", "Searching knowledge"
             text, new_sources = _run_knowledge(
-                state["tenant_id"], query, len(sources) + 1
+                state["tenant_id"], detail, len(sources) + 1
             )
+        elif call["name"] == "web_search":
+            detail = str(call["args"].get("query", ""))[:300]
+            kind, label = "web", "Searching the web"
+            text, new_sources = _run_web(detail, len(sources) + 1)
         else:
-            text, new_sources = _run_web(query, len(sources) + 1)
+            # Merged from the Company MCP Server — execute over the protocol.
+            # Only reachable when the capability layer put it in the session.
+            detail = ", ".join(f"{k}: {v}" for k, v in call["args"].items() if v)[:300]
+            kind, label = "action", f"Company MCP · {call['name']}"
+            text, _is_err = mcp_client.call_tool(
+                call["name"], call["args"], state["tenant_id"], state["role"]
+            )
+            new_sources = []  # actions are facts, not citations
         ms = round((time.perf_counter() - t0) * 1000)
 
         sources.extend(new_sources)
         step = {
             "n": len(trace) + 1,
             "kind": kind,
-            "label": "Searching knowledge" if kind == "knowledge" else "Searching the web",
-            "detail": query,
+            "label": label,
+            "detail": detail,
             "ms": ms,
         }
         trace.append(step)
         writer({"trace": step})
-        writer({"sources": sources})
+        if new_sources:
+            writer({"sources": sources})
         tool_messages.append(ToolMessage(content=text, tool_call_id=call["id"]))
 
     return {
@@ -262,9 +324,18 @@ def get_graph():
 
 
 def initial_state(
-    tenant_id: uuid.UUID, question: str, history: list[dict]
+    tenant_id: uuid.UUID,
+    question: str,
+    history: list[dict],
+    role: str = "employee",
 ) -> AgentState:
-    messages: list[BaseMessage] = [SystemMessage(content=SYSTEM_PROMPT)]
+    # Capability assembly happens HERE, once per question — role comes from
+    # get_current_user() upstream, never from the client.
+    tools = assemble_tools(str(tenant_id), role)
+    has_actions = len(tools) > len(TOOL_SCHEMAS)
+    messages: list[BaseMessage] = [
+        SystemMessage(content=system_prompt(role, has_actions))
+    ]
     for turn in history:
         cls = HumanMessage if turn["role"] == "user" else AIMessage
         messages.append(cls(content=turn["content"]))
@@ -272,6 +343,8 @@ def initial_state(
     return {
         "messages": messages,
         "tenant_id": str(tenant_id),
+        "role": role,
+        "tool_schemas": tools,
         "sources": [],
         "steps_used": 0,
         "trace": [],

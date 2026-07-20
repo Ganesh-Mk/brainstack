@@ -53,6 +53,14 @@ class Settings(BaseSettings):
     AGENT_MAX_STEPS: int = 4  # tool invocations per question — cost cap
     WEB_SEARCH_MAX_RESULTS: int = 4
 
+    # Company MCP Server (Phase 7) — base URL of the company-systems service.
+    # Unset in a deployment = no MCP: the agent runs native-tools-only and the
+    # Connections page shows disconnected. Both values must match the company
+    # service's env.
+    COMPANY_MCP_URL: str = ""
+    MCP_SHARED_SECRET: str = ""
+    MCP_DISCOVERY_TTL: int = 300  # seconds to cache the discovered tool list
+
     # Ingestion pipeline
     # fastembed runs the same all-MiniLM-L6-v2 the lab used (384-dim, matches
     # the Pinecone index) but on ONNX — no PyTorch, fits the Render free tier.
