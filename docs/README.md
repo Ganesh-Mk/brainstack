@@ -6,8 +6,7 @@
 |---|---|
 | [`PROJECT_IDEA.md`](PROJECT_IDEA.md) | The product: what BrainStack is, who it's for, the feature set. |
 | [`PROJECT_GUIDE.md`](PROJECT_GUIDE.md) | The learning + build guide: every AI concept explained, and the 8-phase backend plan (Part 3). The north star. |
-| [`PHASE_3.md`](PHASE_3.md) | **Current phase** — the plan. |
-| [`PHASE_3_COMPLETE.md`](PHASE_3_COMPLETE.md) | Phase 3 results, a full explanation of how RAG works, and the test checklist. |
+| [`PHASE_4.md`](PHASE_4.md) | **Current phase** — the real ingestion pipeline; unlocks the Knowledge pages. |
 
 ## `archive/`
 
@@ -18,6 +17,7 @@ deployment settings, what was verified) but not part of active work.
 |---|---|
 | `archive/PHASE_1.md` / `PHASE_1_COMPLETE.md` | Product shell, design system, marketing site — live on Vercel |
 | `archive/PHASE_2.md` / `PHASE_2_COMPLETE.md` | Multi-tenant FastAPI backend + JWT auth — live on Render |
+| `archive/PHASE_3.md` / `PHASE_3_COMPLETE.md` | RAG from scratch (`lab/`) — all 6 experiments run; includes the full RAG explainer |
 
 ## How the numbering works
 
@@ -34,7 +34,8 @@ Current mapping:
 |---|---|---|
 | Phase 1 | — (frontend only) | ✅ live |
 | Phase 2 | Backend Phase 0 — Foundation | ✅ live |
-| Phase 3 | Backend Phase 1 — RAG from scratch | ✅ built (`lab/`, not deployed) |
+| Phase 3 | Backend Phase 1 — RAG from scratch | ✅ done (`lab/`, all experiments run) |
+| Phase 4 | Backend Phase 2 — real ingestion pipeline | 🔨 planned |
 
 ## The live stack
 
