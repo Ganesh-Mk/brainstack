@@ -4,18 +4,22 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LogIn } from "lucide-react";
+import { api, ApiError, isBackendConfigured } from "@/lib/api";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { FieldError, Input, Label } from "@/components/ui/Field";
+import { useSessionStore } from "@/stores/session";
 import { toast } from "@/stores/toast";
 
 export default function LoginPage() {
   const router = useRouter();
+  const loginWith = useSessionStore((s) => s.loginWith);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
       setError("Enter a valid work email.");
@@ -26,12 +30,30 @@ export default function LoginPage() {
       return;
     }
     setError("");
-    toast(
-      "Welcome to the demo workspace",
-      "Real sign-in arrives with the backend — explore freely.",
-      "success",
-    );
-    router.push("/dashboard");
+
+    if (!isBackendConfigured) {
+      toast(
+        "Welcome to the demo workspace",
+        "Real sign-in arrives with the backend — explore freely.",
+        "success",
+      );
+      router.push("/dashboard");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const result = await api.login({ email, password });
+      loginWith(result);
+      toast(`Welcome back, ${result.user.name}`, undefined, "success");
+      router.push("/dashboard");
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Something went wrong.",
+      );
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -74,9 +96,14 @@ export default function LoginPage() {
           />
         </div>
         {error && <FieldError>{error}</FieldError>}
-        <Button type="submit" variant="accent" className="w-full">
+        <Button
+          type="submit"
+          variant="accent"
+          className="w-full"
+          disabled={busy}
+        >
           <LogIn className="h-4 w-4" />
-          Sign in
+          {busy ? "Signing in…" : "Sign in"}
         </Button>
       </form>
       <p className="mt-6 text-center text-sm text-muted">
@@ -88,10 +115,12 @@ export default function LoginPage() {
           Create your company workspace
         </Link>
       </p>
-      <p className="mt-4 rounded-lg bg-surface-raised px-3 py-2 text-center text-xs text-subtle">
-        Demo mode — any valid-looking input signs you into the sample
-        workspace.
-      </p>
+      {!isBackendConfigured && (
+        <p className="mt-4 rounded-lg bg-surface-raised px-3 py-2 text-center text-xs text-subtle">
+          Demo mode — any valid-looking input signs you into the sample
+          workspace.
+        </p>
+      )}
     </Card>
   );
 }

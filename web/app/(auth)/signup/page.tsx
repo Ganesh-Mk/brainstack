@@ -4,20 +4,24 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Rocket } from "lucide-react";
+import { api, ApiError, isBackendConfigured } from "@/lib/api";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { FieldError, Hint, Input, Label } from "@/components/ui/Field";
+import { useSessionStore } from "@/stores/session";
 import { toast } from "@/stores/toast";
 
 export default function SignupPage() {
   const router = useRouter();
+  const loginWith = useSessionStore((s) => s.loginWith);
   const [company, setCompany] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (company.trim().length < 2) {
       setError("Give your company workspace a name.");
@@ -36,12 +40,39 @@ export default function SignupPage() {
       return;
     }
     setError("");
-    toast(
-      `Workspace "${company}" created (demo)`,
-      "Let's set it up — real accounts arrive with the backend.",
-      "success",
-    );
-    router.push("/onboarding");
+
+    if (!isBackendConfigured) {
+      toast(
+        `Workspace "${company}" created (demo)`,
+        "Let's set it up — real accounts arrive with the backend.",
+        "success",
+      );
+      router.push("/onboarding");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const result = await api.signup({
+        company_name: company.trim(),
+        name: name.trim(),
+        email,
+        password,
+      });
+      loginWith(result);
+      toast(
+        `Workspace "${result.tenant.name}" created`,
+        "You're the admin — let's set it up.",
+        "success",
+      );
+      router.push("/onboarding");
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Something went wrong.",
+      );
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -96,9 +127,14 @@ export default function SignupPage() {
           />
         </div>
         {error && <FieldError>{error}</FieldError>}
-        <Button type="submit" variant="accent" className="w-full">
+        <Button
+          type="submit"
+          variant="accent"
+          className="w-full"
+          disabled={busy}
+        >
           <Rocket className="h-4 w-4" />
-          Create workspace
+          {busy ? "Creating…" : "Create workspace"}
         </Button>
       </form>
       <p className="mt-6 text-center text-sm text-muted">

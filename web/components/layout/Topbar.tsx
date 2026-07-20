@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Bell,
   Building2,
@@ -35,6 +36,7 @@ const ROLE_LABELS: Record<Role, string> = {
 };
 
 export function Topbar() {
+  const router = useRouter();
   const mounted = useMounted();
   const setMobileNavOpen = useUiStore((s) => s.setMobileNavOpen);
   const setPaletteOpen = useUiStore((s) => s.setPaletteOpen);
@@ -44,8 +46,15 @@ export function Topbar() {
   const setTenant = useSessionStore((s) => s.setTenant);
   const storeRole = useSessionStore((s) => s.role);
   const setRole = useSessionStore((s) => s.setRole);
+  const authed = useSessionStore((s) => s.authed);
+  const logout = useSessionStore((s) => s.logout);
   const role: Role = mounted ? storeRole : "admin";
   const tenantName = mounted ? tenant.name : "Acme Corp";
+
+  const signOut = () => {
+    logout();
+    router.push("/login");
+  };
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border bg-canvas/80 px-4 backdrop-blur sm:gap-3 sm:px-6">
@@ -154,7 +163,9 @@ export function Topbar() {
           <p className="text-xs text-subtle">{user.email}</p>
         </div>
         <DropdownSeparator />
-        <DropdownLabel>Demo role — try the RBAC</DropdownLabel>
+        <DropdownLabel>
+          {authed ? "Preview a role (RBAC)" : "Demo role — try the RBAC"}
+        </DropdownLabel>
         {ROLES.map((r) => (
           <DropdownItem key={r} active={r === role} onClick={() => setRole(r)}>
             <span
@@ -164,6 +175,9 @@ export function Topbar() {
               )}
             />
             {ROLE_LABELS[r]}
+            {authed && r === user.role && (
+              <span className="text-[10px] text-subtle">yours</span>
+            )}
             {r === role && <Check className="ml-auto h-4 w-4 text-accent" />}
           </DropdownItem>
         ))}
@@ -181,12 +195,10 @@ export function Topbar() {
           </DropdownItem>
         </Link>
         <DropdownSeparator />
-        <Link href="/login" className="block">
-          <DropdownItem>
-            <LogOut className="h-4 w-4 text-subtle" />
-            Sign out
-          </DropdownItem>
-        </Link>
+        <DropdownItem onClick={signOut}>
+          <LogOut className="h-4 w-4 text-subtle" />
+          Sign out
+        </DropdownItem>
       </Dropdown>
     </header>
   );
