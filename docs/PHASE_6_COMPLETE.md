@@ -76,8 +76,15 @@ done    now carries the full trace
 fake model drives the *real* compiled graph (routing paths, source
 renumbering across tools, the runaway-loop cap).
 
-**Live e2e (real Claude + real Tavily), local: 16/16. Production: re-run
-after deploy — see the note at the bottom.**
+**Live e2e (real Claude + real Tavily): local 16/16, production 16/16** —
+the identical suite against api.brainstack.space, including the guide's
+comparison demo end-to-end with mixed pdf+web citations persisted.
+
+*(Deploy war story, worth remembering: the first production deploy silently
+kept serving Phase 5 — the agent libraries were installed locally but never
+pinned in `requirements.txt`, so Render's build crashed on import and the
+health check refused to promote it. The gate did its job; the fix was three
+lines of pins.)*
 
 ```
 [PASS] K: "How many days of annual leave?"    → planning, knowledge, planning, drafting
