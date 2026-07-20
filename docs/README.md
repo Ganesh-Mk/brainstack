@@ -6,8 +6,9 @@
 |---|---|
 | [`PROJECT_IDEA.md`](PROJECT_IDEA.md) | The product: what BrainStack is, who it's for, the feature set. |
 | [`PROJECT_GUIDE.md`](PROJECT_GUIDE.md) | The learning + build guide: every AI concept explained, and the 8-phase backend plan (Part 3). The north star. |
-| [`PHASE_7.md`](PHASE_7.md) | **Current phase** — MCP + RBAC: the Company MCP Server, agent as MCP client, capability-based roles. |
-| [`PHASE_7_COMPLETE.md`](PHASE_7_COMPLETE.md) | Phase 7 shipped: what was built, both production war stories, browser checklist. |
+| [`PHASE_8.md`](PHASE_8.md) | Phase 8 plan — memory & advanced RAG (hybrid retrieval, rerank, reflection, long-term memory). |
+| [`PHASE_8_COMPLETE.md`](PHASE_8_COMPLETE.md) | Phase 8 shipped: retrieval pipeline, both memories, reflection, the reranker-OOM war story. |
+| [`PHASE_9.md`](PHASE_9.md) | **Current phase** — evaluation & observability: golden dataset, LLM judges, query traces, live dashboards. |
 
 ## `archive/`
 
@@ -22,6 +23,7 @@ deployment settings, what was verified) but not part of active work.
 | `archive/PHASE_4.md` / `PHASE_4_COMPLETE.md` | Real ingestion pipeline — live; Knowledge section unlocked |
 | `archive/PHASE_5.md` / `PHASE_5_COMPLETE.md` | Grounded Q&A + citations + streaming — live; Ask unlocked |
 | `archive/PHASE_6.md` / `PHASE_6_COMPLETE.md` | The LangGraph agent — live; trace panel + /agent/trace unlocked |
+| `archive/PHASE_7.md` / `PHASE_7_COMPLETE.md` | MCP + RBAC ⭐⭐ — live; Company MCP service, capability roles, Operations pages |
 
 ## How the numbering works
 
@@ -43,6 +45,8 @@ Current mapping:
 | Phase 5 | Backend Phase 3 — grounded Q&A + citations + streaming | ✅ live (Ask unlocked) |
 | Phase 6 | Backend Phase 4 — the agent (LangGraph) | ✅ live (trace panel + /agent/trace) |
 | Phase 7 | Backend Phase 5 — MCP + RBAC ⭐⭐ | ✅ live (Connections + Tickets + Workforce Analytics unlocked) |
+| Phase 8 | Backend Phase 6 — memory & advanced RAG | ✅ live (Memory unlocked; hybrid retrieval + reflection) |
+| Phase 9 | Backend Phase 7 — evaluation & observability 🏆 | 🔨 building |
 
 ## The live stack
 
