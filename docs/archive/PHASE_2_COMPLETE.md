@@ -1,10 +1,10 @@
-# ✅ Phase 2 — COMPLETE (Backend Phase 0: Foundation)
+# ✅ Phase 2 — COMPLETE & DEPLOYED (Backend Phase 0: Foundation)
 
-> **Status: built, verified end-to-end against live Supabase, and committed.**
-> The demo login is now backed by a real multi-tenant FastAPI API with JWT
-> auth. Two companies can genuinely sign up, log in, and see only their own
-> workspace. **Zero AI in this phase, by design** — the foundation the AI
-> phases plug into.
+> **Status: built, verified, and LIVE in production.**
+> The backend runs on Render at **`api.brainstack.space`**, the frontend on
+> Vercel at **`app.brainstack.space`**, both talking to Supabase Postgres and
+> Upstash Redis. Signing up on the live site creates a real account. **Zero AI
+> in this phase, by design** — this is the foundation the AI phases plug into.
 
 ---
 
@@ -98,25 +98,55 @@ copy the generated `/invite?token=…` link into a private window to accept it
 and create a teammate in your tenant. *(A polished admin UI for generating
 invites lands when Team & Roles unlocks; the endpoint + accept flow work now.)*
 
-### 🟡 Optional — put the API online (end of phase, not required)
+### ✅ DONE — the API is live in production (2026-07-20)
 
-Vercel can't host FastAPI. When you want the **live** site's login to be real:
+The backend is deployed and the live site's login is **real**.
 
-1. Deploy `backend/` to **Render** (free) or Railway — start command
-   `uvicorn app.main:app --host 0.0.0.0 --port $PORT`, root dir `backend`,
-   env = the root `.env` values.
-2. GoDaddy: add **CNAME `api`** → the host they give you (same 2-min drill as
-   `app`). Add `https://api.brainstack.space` to CORS in `app/config.py`.
-3. In Vercel, set `NEXT_PUBLIC_API_URL=https://api.brainstack.space` and
-   redeploy. The live login is now real.
-   ⚠️ Free tiers sleep after ~15 min idle (first request ~30s to wake) — fine
-   for now; revisit when the AI phases need it always warm.
+**Render** (free tier, Singapore region) — service `brainstack`, auto-deploys
+from `main`:
+
+| Setting | Value |
+|---|---|
+| Root Directory | `backend` |
+| Build Command | `pip install -r requirements.txt && alembic upgrade head` |
+| Start Command | `uvicorn app.main:app --host 0.0.0.0 --port $PORT` |
+| Health Check | `/health` |
+| Env vars (Render dashboard) | `PYTHON_VERSION=3.12.7`, `DATABASE_URL`, `JWT_SECRET`, `JWT_ALGORITHM`, `ACCESS_TOKEN_EXPIRE_MINUTES`, `REDIS_URL`, `PINECONE_API_KEY`, `PINECONE_INDEX` |
+
+The migration runs on every deploy (idempotent), so schema changes ship
+automatically.
+
+**Custom domain** — GoDaddy CNAME `api` → `brainstack-1red.onrender.com`;
+Render issued SSL. The internal `*.onrender.com` URL is never used by the app.
+
+**Vercel** — `NEXT_PUBLIC_API_URL=https://api.brainstack.space` (Production),
+Root Directory `frontend`.
+
+**The live stack, all verified with real requests:**
+
+```
+brainstack.space          → landing            (200)
+app.brainstack.space      → product shell      (200)
+api.brainstack.space      → {"status":"ok","db":"ok","redis":"ok"}
+                            live signup → 201, role admin, row in Supabase
+```
+
+> ⚠️ **Two deploy behaviors worth remembering**
+> 1. Render's Root Directory means **only commits touching `backend/` trigger a
+>    backend deploy** (Vercel rebuilds on every push). To force one:
+>    Render → Manual Deploy → *Deploy latest commit*.
+> 2. **Render doesn't post GitHub commit checks** — only Vercel appears in the
+>    "All checks have passed" box. Watch Render deploys in its own dashboard.
+> 3. Free tier **sleeps after ~15 min idle** — the first request then takes
+>    ~30–60s. Revisit when the AI phases need it always warm (paid instance, or
+>    a cron pinging `/health`).
 
 ### Nothing to sign up for
 
 Every credential this phase used is already in the root `.env` and tested
-(Supabase, Redis, Pinecone). `NEXT_PUBLIC_API_URL` in `frontend/.env.local` is set
-to `http://localhost:8000` for local dev.
+(Supabase, Redis, Pinecone), and mirrored into Render's dashboard.
+`frontend/.env.local` keeps `NEXT_PUBLIC_API_URL=http://localhost:8000` for
+local dev; Vercel holds the production value.
 
 ---
 
@@ -128,6 +158,8 @@ to `http://localhost:8000` for local dev.
 - [x] Throwaway vector upserted/queried in a test Pinecone namespace
 - [x] Auth test suite green (9/9); frontend lint + build clean
 - [x] Frontend demo-mode preserved when `NEXT_PUBLIC_API_URL` is empty
+- [x] **Bonus:** backend deployed to Render at `api.brainstack.space` and wired
+      to the live frontend — the production login is real
 
 **Phase 2 is wrapped.** Next: `PROJECT_GUIDE.md` **Backend Phase 1 —
 "RAG from scratch, in a script"** (the most important learning phase — raw
