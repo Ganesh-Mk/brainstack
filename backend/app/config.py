@@ -52,8 +52,13 @@ class Settings(BaseSettings):
     HYBRID_ENABLED: bool = True  # BM25 over the tenant's Postgres chunks + RRF
     BM25_MAX_CHUNKS: int = 5000  # corpus cap per query (newest first)
     RRF_K: int = 60
-    RERANK_ENABLED: bool = True  # cross-encoder; falls back gracefully
-    RERANK_MODEL: str = "Xenova/ms-marco-MiniLM-L-6-v2"  # ONNX, free-tier ok
+    # Cross-encoder reranking. Default OFF: loading a second ONNX model next
+    # to the embedder OOM-killed the 512MB Render free instance (verified —
+    # first ask 502'd the service). Set RERANK_ENABLED=true where there's
+    # headroom (local dev, paid tiers); retrieval quality then gets the
+    # cross-encoder jump, otherwise hybrid RRF order ships.
+    RERANK_ENABLED: bool = False
+    RERANK_MODEL: str = "Xenova/ms-marco-MiniLM-L-6-v2"
 
     # Memory (Phase 8)
     MEMORY_ENABLED: bool = True
