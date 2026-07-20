@@ -51,6 +51,8 @@ class AgentState(TypedDict):
     sources: list[dict]  # chat.Source dicts, numbered contiguously
     steps_used: int
     trace: list[dict]
+    drafts: int  # Phase 8 reflection: attempts examined (hard cap 2)
+    question: str  # the current user question (reflection critic context)
 
 
 # ── Native tools (schemas only — execution is ours, in the tools node) ──────
@@ -154,8 +156,69 @@ happened.
 """
 
 
-def system_prompt(role: str, has_action_tools: bool) -> str:
-    return SYSTEM_PROMPT + (_ACTIONS_PROMPT if has_action_tools else _NO_ACTIONS_PROMPT)
+def system_prompt(
+    role: str,
+    has_action_tools: bool,
+    summary: str | None = None,
+    memories: list[str] | None = None,
+) -> str:
+    """Base + role section + (Phase 8) conversation summary and long-term
+    memory blocks. Memory is context, not instruction — the prompt says use
+    it when relevant, never recite it unprompted."""
+    prompt = SYSTEM_PROMPT + (_ACTIONS_PROMPT if has_action_tools else _NO_ACTIONS_PROMPT)
+    if summary:
+        prompt += (
+            "\nConversation so far (older turns, summarized):\n" + summary + "\n"
+        )
+    if memories:
+        prompt += (
+            "\nLong-term memory — facts stated in earlier conversations by "
+            "THE PERSON YOU ARE TALKING TO ('the user' below means them). "
+            "Answer their questions about themselves from these facts "
+            "directly and confidently (no citation needed); do not recite "
+            "them unprompted:\n"
+            + "\n".join(f"- {m}" for m in memories)
+            + "\n"
+        )
+    return prompt
+
+
+# ── Reflection (Phase 8): critique the draft, retry at most once ────────────
+
+CRITIC_SYSTEM = """You are a strict grounding auditor for an AI answer.
+
+Given numbered source passages and a draft answer, check:
+1. Every factual claim is supported by the sources (or is an honest "I don't
+   know" / a report of a tool action).
+2. Citations [n] point at passages that actually support the claim.
+3. The draft answers the question that was asked.
+
+Output ONLY JSON: {"grounded": true/false, "problems": "<one short sentence,
+empty when grounded>"}. Be strict about invented facts, lenient about style."""
+
+
+def critique(draft: str, sources: list[dict], question: str) -> tuple[bool, str]:
+    """(grounded, problems). Fails open — a broken critic must never block
+    an answer."""
+    try:
+        from app.services import memory as memory_service
+
+        ctx = "\n\n".join(
+            f"[{s['n']}] {s['text'][:600]}" for s in sources[:8]
+        )
+        raw = memory_service.haiku(
+            CRITIC_SYSTEM,
+            f"Sources:\n{ctx}\n\nQuestion: {question[:500]}\n\nDraft answer:\n{draft[:2500]}",
+            max_tokens=150,
+        )
+        import json as _json
+        import re as _re
+
+        m = _re.search(r"\{.*\}", raw, _re.DOTALL)
+        data = _json.loads(m.group(0)) if m else {}
+        return bool(data.get("grounded", True)), str(data.get("problems", ""))[:300]
+    except Exception:
+        return True, ""
 
 
 # ── Tool implementations ────────────────────────────────────────────────────
@@ -293,6 +356,48 @@ def tools_node(state: AgentState) -> dict:
     }
 
 
+def reflect_node(state: AgentState) -> dict:
+    """Examine the draft. Grounded → ship it. Not grounded → tell the UI to
+    clear the streamed draft (reset), record a reflection trace step, and
+    send the critique back for ONE rewrite. drafts is the attempt counter —
+    route() never sends a second draft here, so 2 attempts is a hard cap."""
+    writer = get_stream_writer()
+    last = state["messages"][-1]
+    draft = last.content if isinstance(last.content, str) else str(last.content)
+
+    t0 = time.perf_counter()
+    grounded, problems = critique(draft, state["sources"], state["question"])
+    ms = round((time.perf_counter() - t0) * 1000)
+
+    if grounded:
+        # No trace step for a clean pass — the timeline stays honest about
+        # WORK done, not checks passed.
+        return {"drafts": state["drafts"] + 1}
+
+    step = {
+        "n": len(state["trace"]) + 1,
+        "kind": "reflection",
+        "label": "Reflecting — rewriting the draft",
+        "detail": problems or "The draft wasn't fully grounded.",
+        "ms": ms,
+    }
+    writer({"reset": True})
+    writer({"trace": step})
+    retry = HumanMessage(
+        content=(
+            f"Your draft answer has grounding problems: {problems or 'unsupported claims'}. "
+            "Rewrite the answer using ONLY the tool results above. Keep "
+            "citations only where a source genuinely supports the claim; "
+            "drop anything you cannot support."
+        )
+    )
+    return {
+        "messages": [retry],
+        "drafts": state["drafts"] + 1,
+        "trace": state["trace"] + [step],
+    }
+
+
 def route(state: AgentState) -> str:
     last = state["messages"][-1]
     if (
@@ -301,7 +406,20 @@ def route(state: AgentState) -> str:
         and state["steps_used"] < get_settings().AGENT_MAX_STEPS
     ):
         return "tools"
+    if (
+        get_settings().REFLECTION_ENABLED
+        and isinstance(last, AIMessage)
+        and not last.tool_calls
+        and state["sources"]  # nothing to ground against otherwise
+        and state["drafts"] == 0  # examine the FIRST draft only
+    ):
+        return "reflect"
     return END
+
+
+def route_after_reflect(state: AgentState) -> str:
+    # A retry request was appended → back to the agent; otherwise ship.
+    return "agent" if isinstance(state["messages"][-1], HumanMessage) else END
 
 
 _graph = None
@@ -313,8 +431,14 @@ def get_graph():
         builder = StateGraph(AgentState)
         builder.add_node("agent", agent_node)
         builder.add_node("tools", tools_node)
+        builder.add_node("reflect", reflect_node)
         builder.set_entry_point("agent")
-        builder.add_conditional_edges("agent", route, {"tools": "tools", END: END})
+        builder.add_conditional_edges(
+            "agent", route, {"tools": "tools", "reflect": "reflect", END: END}
+        )
+        builder.add_conditional_edges(
+            "reflect", route_after_reflect, {"agent": "agent", END: END}
+        )
         builder.add_edge("tools", "agent")
         _graph = builder.compile()
     return _graph
@@ -328,13 +452,15 @@ def initial_state(
     question: str,
     history: list[dict],
     role: str = "employee",
+    summary: str | None = None,
+    memories: list[str] | None = None,
 ) -> AgentState:
     # Capability assembly happens HERE, once per question — role comes from
     # get_current_user() upstream, never from the client.
     tools = assemble_tools(str(tenant_id), role)
     has_actions = len(tools) > len(TOOL_SCHEMAS)
     messages: list[BaseMessage] = [
-        SystemMessage(content=system_prompt(role, has_actions))
+        SystemMessage(content=system_prompt(role, has_actions, summary, memories))
     ]
     for turn in history:
         cls = HumanMessage if turn["role"] == "user" else AIMessage
@@ -348,6 +474,8 @@ def initial_state(
         "sources": [],
         "steps_used": 0,
         "trace": [],
+        "drafts": 0,
+        "question": question,
     }
 
 

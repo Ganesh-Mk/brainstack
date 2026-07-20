@@ -47,6 +47,22 @@ class Settings(BaseSettings):
     CHAT_HISTORY_TURNS: int = 6  # prior messages included in the prompt
     CHAT_MAX_QUESTION_CHARS: int = 4000
 
+    # Advanced retrieval (Phase 8) — retrieve wide, merge, rerank narrow.
+    RETRIEVE_CANDIDATES: int = 25  # dense candidates before rerank
+    HYBRID_ENABLED: bool = True  # BM25 over the tenant's Postgres chunks + RRF
+    BM25_MAX_CHUNKS: int = 5000  # corpus cap per query (newest first)
+    RRF_K: int = 60
+    RERANK_ENABLED: bool = True  # cross-encoder; falls back gracefully
+    RERANK_MODEL: str = "Xenova/ms-marco-MiniLM-L-6-v2"  # ONNX, free-tier ok
+
+    # Memory (Phase 8)
+    MEMORY_ENABLED: bool = True
+    MEMORY_TOP_K: int = 3
+    MEMORY_MIN_SCORE: float = 0.35  # cosine gate — don't inject noise
+
+    # Reflection (Phase 8) — 2 attempts max, 2nd draft ships regardless
+    REFLECTION_ENABLED: bool = True
+
     # The agent (LangGraph)
     TAVILY_API_KEY: str = ""
     LLM_MODEL_AGENT: str = "claude-haiku-4-5"  # env-swap up for demos

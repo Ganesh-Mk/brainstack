@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.routers import auth, company, conversations, documents, health
+from app.routers import auth, company, conversations, documents, health, memories
 
 app = FastAPI(
     title="BrainStack API",
@@ -23,3 +23,4 @@ app.include_router(auth.router)
 app.include_router(documents.router)
 app.include_router(conversations.router)
 app.include_router(company.router)
+app.include_router(memories.router)

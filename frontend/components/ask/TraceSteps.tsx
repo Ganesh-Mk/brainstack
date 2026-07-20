@@ -4,6 +4,7 @@ import {
   Brain,
   Globe,
   PenLine,
+  RefreshCw,
   Search,
   Zap,
   type LucideIcon,
@@ -20,6 +21,8 @@ const KIND_META: Record<
   web: { icon: Globe, tint: "text-accent" },
   // An action step MUTATES a company system — visually distinct from reads.
   action: { icon: Zap, tint: "text-warning" },
+  // Reflection fired = the first draft failed its grounding audit.
+  reflection: { icon: RefreshCw, tint: "text-warning" },
   drafting: { icon: PenLine, tint: "text-success" },
 };
 

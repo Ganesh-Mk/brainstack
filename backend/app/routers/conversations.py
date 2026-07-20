@@ -36,7 +36,7 @@ from app.schemas.chat import (
     SourceOut,
     TraceStep,
 )
-from app.services import agent, chat
+from app.services import agent, chat, memory
 
 log = logging.getLogger("chat")
 
@@ -198,7 +198,9 @@ def ask(
         _streaming.add(convo.id)
 
     tenant_id = current.tenant_id
+    user_id = current.user.id
     convo_id, first_question = convo.id, _question_count(db, convo.id) == 0
+    convo_summary = convo.summary  # Phase 8: older turns, compressed
 
     def generate() -> Generator[str, None, None]:
         # Own session: the request session's lifecycle ends under us while
@@ -213,8 +215,15 @@ def ask(
             history = chat.history_messages(
                 session, convo_id, get_settings().CHAT_HISTORY_TURNS
             )
+            # Phase 8: what do we remember about this user? ([] on any failure)
+            memories = memory.recall(tenant_id, user_id, question)
             state = agent.initial_state(
-                tenant_id, question, history, role=current.role
+                tenant_id,
+                question,
+                history,
+                role=current.role,
+                summary=convo_summary,
+                memories=memories,
             )
 
             answer_parts: list[str] = []
@@ -233,6 +242,12 @@ def ask(
                     if "sources" in payload:
                         sources = payload["sources"]
                         yield _sse("sources", sources)
+                    if payload.get("reset"):
+                        # Reflection rejected the draft: clear it everywhere —
+                        # the retry streams fresh, only the final draft persists.
+                        answer_parts.clear()
+                        draft_started = None
+                        yield _sse("reset", {})
                 elif mode == "messages":
                     chunk, meta = payload
                     if meta.get("langgraph_node") != "agent":
@@ -262,6 +277,13 @@ def ask(
 
             ids = _persist(session, question, answer, sources, trace)
             yield _sse("done", {**ids, "trace": trace})
+
+            # Phase 8 housekeeping AFTER the user has their answer — each call
+            # swallows its own failures and costs the user nothing.
+            memory.extract_and_store(
+                session, tenant_id, user_id, convo_id, question, answer
+            )
+            memory.maybe_update_summary(session, convo_id)
 
         except chat.ChatNotConfigured as e:
             yield _sse("error", {"detail": str(e)})

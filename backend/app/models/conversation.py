@@ -21,6 +21,10 @@ class Conversation(Base):
         Uuid, ForeignKey("users.id"), index=True
     )
     title: Mapped[str] = mapped_column(String(120), default="New conversation")
+    # Phase 8: when the thread outgrows the history window, older turns are
+    # compressed here (one haiku call, post-answer) and injected ahead of the
+    # recent turns — long chats stop forgetting their beginning.
+    summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

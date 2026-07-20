@@ -70,10 +70,23 @@ export type ApiSource = {
 
 export type ApiTraceStep = {
   n: number;
-  kind: "planning" | "knowledge" | "web" | "action" | "drafting";
+  kind:
+    | "planning"
+    | "knowledge"
+    | "web"
+    | "action"
+    | "reflection"
+    | "drafting";
   label: string;
   detail?: string | null;
   ms?: number | null;
+};
+
+export type ApiMemory = {
+  id: string;
+  content: string;
+  conversation_id: string | null;
+  created_at: string;
 };
 
 // ── Company systems (Phase 7 · MCP + RBAC) ─────────────────────────────────
@@ -269,6 +282,13 @@ export const api = {
   deleteConversation: (token: string, id: string) =>
     request<void>(`/conversations/${id}`, { method: "DELETE", token }),
 
+  // ── Long-term memory (Phase 8) ───────────────────────────────────────────
+
+  listMemories: (token: string) => request<ApiMemory[]>("/memories", { token }),
+
+  deleteMemory: (token: string, id: string) =>
+    request<void>(`/memories/${id}`, { method: "DELETE", token }),
+
   // ── Company systems (MCP) ────────────────────────────────────────────────
 
   connections: (token: string) =>
@@ -285,6 +305,9 @@ export type AskHandlers = {
   onSources: (sources: ApiSource[]) => void;
   onDelta: (text: string) => void;
   onTrace?: (step: ApiTraceStep) => void;
+  /** Phase 8 reflection rejected the draft — clear the streamed text; a
+   * rewritten answer streams next. */
+  onReset?: () => void;
   onDone: (ids: { user_message_id: string; assistant_message_id: string }) => void;
   onError: (message: string) => void;
 };
@@ -344,6 +367,7 @@ export async function streamAsk(
       const parsed = JSON.parse(data);
       if (event === "sources") handlers.onSources(parsed);
       else if (event === "trace") handlers.onTrace?.(parsed);
+      else if (event === "reset") handlers.onReset?.();
       else if (event === "delta") handlers.onDelta(parsed.text);
       else if (event === "done") handlers.onDone(parsed);
       else if (event === "error") handlers.onError(parsed.detail);

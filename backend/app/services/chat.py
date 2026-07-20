@@ -4,10 +4,21 @@ This is the lab's rag_lab.py grown up: same embedding model, same grounding
 rule (whose exact behaviour the lab measured — short, consistent refusals),
 but retrieval runs against the tenant's Pinecone namespace and the answer
 streams token by token.
+
+Phase 8 turned retrieve() into a pipeline:
+  dense top-25 (Pinecone)  ┐
+                           ├─ RRF merge → cross-encoder rerank → top-6
+  BM25 top-25 (Postgres)   ┘
+BM25 over the tenant's chunk rows is what finds exact tokens ("ERR_4021")
+that embeddings shrug at; the cross-encoder reads (question, passage)
+together and fixes the ordering. Both degrade gracefully to plain dense.
 """
 
 from __future__ import annotations
 
+import json
+import math
+import re
 import uuid
 from dataclasses import asdict, dataclass
 from typing import Generator, Iterable
@@ -16,8 +27,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.models import Chunk, Document, Message
-from app.services import embeddings, vectorstore
+from app.models import Chunk, Document, EmbeddingCache, Message
+from app.services import embeddings, rerank, vectorstore
 
 
 @dataclass
@@ -61,44 +72,148 @@ message. Follow these rules exactly:
 """
 
 
+_TOKEN_RE = re.compile(r"[a-z0-9]+")
+
+
+def _tokens(text: str) -> list[str]:
+    """Lowercase alnum runs: 'ERR_4021' -> ['err', '4021'] — exactly the rare
+    tokens BM25 exists to catch."""
+    return _TOKEN_RE.findall(text.lower())
+
+
+def _bm25_ranking(db: Session, tenant_id: uuid.UUID, question: str) -> list[str]:
+    """Chunk ids ranked by BM25 over the tenant's corpus (best first).
+    Empty list on any failure — hybrid is an upgrade, not a dependency."""
+    settings = get_settings()
+    try:
+        from rank_bm25 import BM25Okapi
+
+        rows = list(
+            db.execute(
+                select(Chunk.id, Chunk.text)
+                .where(Chunk.tenant_id == tenant_id)
+                .order_by(Chunk.created_at.desc())
+                .limit(settings.BM25_MAX_CHUNKS)
+            )
+        )
+        if not rows:
+            return []
+        corpus = [_tokens(text) for _, text in rows]
+        q = _tokens(question)
+        if not q:
+            return []
+        scored = BM25Okapi(corpus).get_scores(q)
+        ranked = sorted(
+            zip((str(cid) for cid, _ in rows), scored),
+            key=lambda p: p[1],
+            reverse=True,
+        )
+        # Only ids that actually matched something.
+        return [cid for cid, s in ranked[: settings.RETRIEVE_CANDIDATES] if s > 0]
+    except Exception:
+        return []
+
+
+def _rrf_merge(rankings: list[list[str]], k: int) -> list[str]:
+    """Reciprocal Rank Fusion: score(id) = Σ 1/(k + rank). Order-only inputs —
+    no score normalization games between cosine and BM25."""
+    fused: dict[str, float] = {}
+    for ranking in rankings:
+        for rank, cid in enumerate(ranking, start=1):
+            fused[cid] = fused.get(cid, 0.0) + 1.0 / (k + rank)
+    return [cid for cid, _ in sorted(fused.items(), key=lambda p: p[1], reverse=True)]
+
+
+def _cosine_from_cache(db: Session, qvec: list[float], shas: list[str]) -> dict[str, float]:
+    """Dense scores for BM25-only candidates, served from the embedding cache
+    (ingestion filled it) — the UI's relevance % stays meaningful without
+    re-embedding anything."""
+    if not shas:
+        return {}
+    settings = get_settings()
+    rows = db.execute(
+        select(EmbeddingCache.content_sha, EmbeddingCache.vector).where(
+            EmbeddingCache.content_sha.in_(shas),
+            EmbeddingCache.model == settings.EMBEDDING_MODEL,
+        )
+    )
+    qnorm = math.sqrt(sum(x * x for x in qvec)) or 1.0
+    out: dict[str, float] = {}
+    for sha, raw in rows:
+        vec = json.loads(raw)
+        dot = sum(a * b for a, b in zip(qvec, vec))
+        vnorm = math.sqrt(sum(x * x for x in vec)) or 1.0
+        out[sha] = dot / (qnorm * vnorm)
+    return out
+
+
 def retrieve(db: Session, tenant_id: uuid.UUID, question: str) -> list[Source]:
-    """Embed the question, query the tenant's namespace, hydrate full chunk
-    text from Postgres (falling back to vector metadata if a row is gone)."""
+    """The Phase 8 pipeline: dense + BM25 → RRF → cross-encoder → top-K.
+    Every stage degrades to the previous one on failure."""
     settings = get_settings()
     qvec = embeddings.embed_raw([question])[0]
     res = vectorstore.get_index().query(
         vector=qvec,
-        top_k=settings.CHAT_TOP_K,
+        top_k=settings.RETRIEVE_CANDIDATES,
         namespace=str(tenant_id),
         include_metadata=True,
     )
     matches = res.get("matches", [])
-    if not matches:
+    dense_ranking = [m["id"] for m in matches]
+    dense_scores = {m["id"]: float(m.get("score", 0.0)) for m in matches}
+
+    rankings = [dense_ranking]
+    if settings.HYBRID_ENABLED:
+        bm25 = _bm25_ranking(db, tenant_id, question)
+        if bm25:
+            rankings.append(bm25)
+    candidate_ids = _rrf_merge(rankings, settings.RRF_K)[: settings.RETRIEVE_CANDIDATES]
+    if not candidate_ids:
         return []
 
-    ids: list[uuid.UUID] = []
-    for m in matches:
+    # Hydrate rows + documents.
+    uuids = []
+    for cid in candidate_ids:
         try:
-            ids.append(uuid.UUID(m["id"]))
+            uuids.append(uuid.UUID(cid))
         except ValueError:
             continue
-    rows = {
-        str(c.id): c
-        for c in db.scalars(select(Chunk).where(Chunk.id.in_(ids)))
-    }
+    rows = {str(c.id): c for c in db.scalars(select(Chunk).where(Chunk.id.in_(uuids)))}
     doc_ids = {r.document_id for r in rows.values()}
     docs = {
         str(d.id): d
         for d in db.scalars(select(Document).where(Document.id.in_(doc_ids)))
     }
+    meta_by_id = {m["id"]: (m.get("metadata") or {}) for m in matches}
+
+    # Fill dense scores for BM25-only candidates from the embedding cache.
+    missing = [
+        rows[cid].content_sha
+        for cid in candidate_ids
+        if cid not in dense_scores and cid in rows and rows[cid].content_sha
+    ]
+    by_sha = _cosine_from_cache(db, qvec, missing)
+    for cid in candidate_ids:
+        if cid not in dense_scores and cid in rows:
+            dense_scores[cid] = by_sha.get(rows[cid].content_sha, 0.0)
+
+    def text_of(cid: str) -> str:
+        if cid in rows:
+            return rows[cid].text
+        return meta_by_id.get(cid, {}).get("text", "")
+
+    candidates = [cid for cid in candidate_ids if text_of(cid)]
+
+    # Cross-encoder rerank (order only — scores stay cosine for the UI).
+    ranked = candidates
+    ce = rerank.scores(question, [text_of(cid) for cid in candidates])
+    if ce is not None:
+        ranked = [cid for _, cid in sorted(zip(ce, candidates), key=lambda p: -p[0])]
 
     sources: list[Source] = []
-    for i, m in enumerate(matches, start=1):
-        chunk = rows.get(m["id"])
-        meta = m.get("metadata") or {}
-        text = chunk.text if chunk else meta.get("text", "")
-        if not text:
-            continue
+    for i, cid in enumerate(ranked[: settings.CHAT_TOP_K], start=1):
+        chunk = rows.get(cid)
+        meta = meta_by_id.get(cid, {})
         document_id = str(chunk.document_id) if chunk else meta.get("document_id", "")
         doc = docs.get(document_id)
         sources.append(
@@ -107,15 +222,12 @@ def retrieve(db: Session, tenant_id: uuid.UUID, question: str) -> list[Source]:
                 document_id=document_id,
                 title=doc.title if doc else "Removed document",
                 page=chunk.page if chunk else int(meta.get("page", 1)),
-                text=text,
-                score=round(float(m.get("score", 0.0)), 4),
+                text=text_of(cid),
+                score=round(dense_scores.get(cid, 0.0), 4),
                 source_type=doc.source_type if doc else "pdf",
                 source_url=doc.source_url if doc else None,
             )
         )
-    # Re-number after any skips so citations are always contiguous.
-    for i, s in enumerate(sources, start=1):
-        s.n = i
     return sources
 
 

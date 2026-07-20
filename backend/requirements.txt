@@ -31,5 +31,9 @@ tavily-python==0.7.26
 # MCP client (Phase 7) — the agent's external boundary
 mcp==1.28.1
 
+# advanced retrieval (Phase 8) — BM25 leg of hybrid search; the cross-encoder
+# reranker rides on the existing fastembed pin
+rank-bm25==0.2.2
+
 # tests
 pytest==9.1.1

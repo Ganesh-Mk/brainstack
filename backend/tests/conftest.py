@@ -14,7 +14,7 @@ from sqlalchemy.pool import StaticPool
 from app.config import get_settings
 from app.db import Base, get_db
 from app.main import app
-from app.services import mcp_client
+from app.services import mcp_client, memory, rerank, vectorstore
 
 
 @pytest.fixture(autouse=True)
@@ -27,6 +27,22 @@ def no_mcp_by_default(monkeypatch):
     mcp_client.reset_cache()
     yield
     mcp_client.reset_cache()
+
+
+def _no_llm(*args, **kwargs):
+    raise RuntimeError("no LLM calls in unit tests")
+
+
+@pytest.fixture(autouse=True)
+def sealed_seams(monkeypatch):
+    """The suite must be hermetic: .env holds REAL keys, so the Phase 8 paths
+    (memory extraction/recall, summarization, reflection critic, reranker)
+    would otherwise hit live Anthropic/Pinecone from tests. Seal every seam;
+    the graceful-degradation design turns each into a clean no-op. Tests that
+    exercise a seam re-patch it themselves."""
+    monkeypatch.setattr(memory, "haiku", _no_llm)  # extract/summary/critic → no-op
+    monkeypatch.setattr(vectorstore, "get_index", _no_llm)  # recall → []
+    monkeypatch.setattr(rerank, "get_model", lambda: None)  # keep retrieval order
 
 
 @pytest.fixture

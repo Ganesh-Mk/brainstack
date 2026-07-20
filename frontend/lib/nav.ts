@@ -137,8 +137,7 @@ export const APP_NAV: NavItem[] = [
     href: "/agent/memory",
     icon: Brain,
     group: "Intelligence",
-    locked: true,
-    unlocksIn: "Backend Phase 6 · Memory & advanced RAG",
+    locked: false,
     blurb:
       "What the assistant remembers — conversation context and durable long-term facts.",
   },

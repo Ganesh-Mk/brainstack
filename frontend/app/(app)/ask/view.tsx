@@ -216,6 +216,7 @@ export function AskView() {
         setLiveSources(sources);
       },
       onTrace: (step) => setLiveTrace((prev) => [...prev, step]),
+      onReset: () => setLiveText(""), // reflection rejected the draft
       onDelta: (text) => setLiveText((prev) => prev + text),
       onDone: () => {
         setStreaming(false);
