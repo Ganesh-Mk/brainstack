@@ -89,7 +89,7 @@ bloat every Render deploy for code the API never runs. The lab stays local.
 Retrieval experiments need a document with **distinct topics that use different
 words for the same idea** (that's what makes semantic search visible).
 
-We generate `lab/data/handbook.pdf` — a fictional **Acme Corp employee
+We generate `lab/data/handbook.pdf` — a fictional **Lovely employee
 handbook** (~8–10 pages) with clearly separated sections:
 
 - Refunds & returns *(deliberately worded as "returns", so a query about

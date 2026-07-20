@@ -27,14 +27,14 @@ import type { Role } from "@/lib/nav";
 
 const DEMO_USER: ApiUser = {
   id: "demo",
-  email: "you@acme.example",
+  email: "you@lovelydesign.in",
   name: "Demo User",
   role: "admin",
 };
 const DEMO_TENANT: ApiTenant = {
-  id: "acme",
-  name: "Acme Corp",
-  slug: "acme",
+  id: "lovely",
+  name: "Lovely",
+  slug: "lovely",
 };
 
 type SessionState = {
@@ -67,7 +67,7 @@ export const useSessionStore = create<SessionState>()(
       tenant: DEMO_TENANT,
       tenants: isBackendConfigured
         ? [DEMO_TENANT]
-        : [DEMO_TENANT, { id: "globex", name: "Globex Ltd", slug: "globex" }],
+        : [DEMO_TENANT, { id: "another-company", name: "Another Company", slug: "another-company" }],
       role: "admin",
       authed: false,
 

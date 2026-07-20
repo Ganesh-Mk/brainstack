@@ -74,7 +74,7 @@ stacked-layers logo, also the favicon).
 - **Sidebar** — 6 grouped sections, active-pill states, 🔒 badges on locked
   items, collapsible to icon rail (persisted), mobile slide-over drawer,
   **RBAC-filtered**: items disappear for roles that can't see them.
-- **Topbar** — mock tenant switcher (Acme Corp / Globex Ltd), search field,
+- **Topbar** — mock tenant switcher (Lovely / Another Company), search field,
   notifications + help, avatar menu with a **demo role simulator**
   (employee / manager / admin) — flip it and watch Operations/Insights/Admin
   appear and vanish. This demos the RBAC story before any backend exists.

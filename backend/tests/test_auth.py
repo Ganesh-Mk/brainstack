@@ -4,40 +4,40 @@ from tests.conftest import auth_header, signup
 
 
 def test_signup_creates_tenant_and_admin(client):
-    r = signup(client, "Acme Corp", "Ada", "ada@acme.example")
+    r = signup(client, "Company A", "Ada", "ada@company-a.com")
     assert r.status_code == 201
     body = r.json()
     assert body["token_type"] == "bearer"
     assert body["user"]["role"] == "admin"
-    assert body["user"]["email"] == "ada@acme.example"
-    assert body["tenant"]["name"] == "Acme Corp"
-    assert body["tenant"]["slug"] == "acme-corp"
+    assert body["user"]["email"] == "ada@company-a.com"
+    assert body["tenant"]["name"] == "Company A"
+    assert body["tenant"]["slug"] == "company-a"
 
 
 def test_login_and_me(client):
-    signup(client, "Acme Corp", "Ada", "ada@acme.example")
+    signup(client, "Company A", "Ada", "ada@company-a.com")
     r = client.post(
-        "/auth/login", json={"email": "ada@acme.example", "password": "password123"}
+        "/auth/login", json={"email": "ada@company-a.com", "password": "password123"}
     )
     assert r.status_code == 200
     token = r.json()["access_token"]
 
     me = client.get("/auth/me", headers=auth_header(token))
     assert me.status_code == 200
-    assert me.json()["tenant"]["name"] == "Acme Corp"
+    assert me.json()["tenant"]["name"] == "Company A"
     assert me.json()["user"]["role"] == "admin"
 
 
 def test_duplicate_email_rejected(client):
-    signup(client, "Acme Corp", "Ada", "ada@acme.example")
-    r = signup(client, "Another Co", "Imposter", "ada@acme.example")
+    signup(client, "Company A", "Ada", "ada@company-a.com")
+    r = signup(client, "Company B", "Imposter", "ada@company-a.com")
     assert r.status_code == 409
 
 
 def test_wrong_password_401(client):
-    signup(client, "Acme Corp", "Ada", "ada@acme.example")
+    signup(client, "Company A", "Ada", "ada@company-a.com")
     r = client.post(
-        "/auth/login", json={"email": "ada@acme.example", "password": "wrong"}
+        "/auth/login", json={"email": "ada@company-a.com", "password": "wrong"}
     )
     assert r.status_code == 401
 
@@ -49,31 +49,31 @@ def test_garbage_and_missing_token_401(client):
 
 def test_tenant_isolation(client):
     """Two companies; each admin sees only their own tenant."""
-    acme = signup(client, "Acme Corp", "Ada", "ada@acme.example").json()
-    globex = signup(client, "Globex Ltd", "Gil", "gil@globex.example").json()
+    company_a = signup(client, "Company A", "Ada", "ada@company-a.com").json()
+    company_b = signup(client, "Company B", "Gil", "gil@company-b.com").json()
 
-    acme_me = client.get("/auth/me", headers=auth_header(acme["access_token"]))
-    globex_me = client.get("/auth/me", headers=auth_header(globex["access_token"]))
+    company_a_me = client.get("/auth/me", headers=auth_header(company_a["access_token"]))
+    company_b_me = client.get("/auth/me", headers=auth_header(company_b["access_token"]))
 
-    assert acme_me.json()["tenant"]["name"] == "Acme Corp"
-    assert globex_me.json()["tenant"]["name"] == "Globex Ltd"
-    assert acme["tenant"]["id"] != globex["tenant"]["id"]
+    assert company_a_me.json()["tenant"]["name"] == "Company A"
+    assert company_b_me.json()["tenant"]["name"] == "Company B"
+    assert company_a["tenant"]["id"] != company_b["tenant"]["id"]
 
 
 def test_invite_flow_end_to_end(client):
-    admin = signup(client, "Acme Corp", "Ada", "ada@acme.example").json()
+    admin = signup(client, "Company A", "Ada", "ada@company-a.com").json()
 
     created = client.post(
         "/auth/invites",
         headers=auth_header(admin["access_token"]),
-        json={"email": "bob@acme.example", "role": "manager"},
+        json={"email": "bob@company-a.com", "role": "manager"},
     )
     assert created.status_code == 201
     token = created.json()["token"]
 
     info = client.get(f"/auth/invites/{token}")
     assert info.status_code == 200
-    assert info.json()["company_name"] == "Acme Corp"
+    assert info.json()["company_name"] == "Company A"
     assert info.json()["role"] == "manager"
 
     accepted = client.post(
@@ -82,7 +82,7 @@ def test_invite_flow_end_to_end(client):
     )
     assert accepted.status_code == 201
     assert accepted.json()["user"]["role"] == "manager"
-    assert accepted.json()["tenant"]["name"] == "Acme Corp"
+    assert accepted.json()["tenant"]["name"] == "Company A"
 
     # Same tenant as the admin who invited.
     assert accepted.json()["tenant"]["id"] == admin["tenant"]["id"]
@@ -97,11 +97,11 @@ def test_invite_flow_end_to_end(client):
 
 
 def test_non_admin_cannot_invite(client):
-    admin = signup(client, "Acme Corp", "Ada", "ada@acme.example").json()
+    admin = signup(client, "Company A", "Ada", "ada@company-a.com").json()
     invite = client.post(
         "/auth/invites",
         headers=auth_header(admin["access_token"]),
-        json={"email": "emp@acme.example", "role": "employee"},
+        json={"email": "emp@company-a.com", "role": "employee"},
     ).json()
     employee = client.post(
         f"/auth/invites/{invite['token']}/accept",
@@ -111,7 +111,7 @@ def test_non_admin_cannot_invite(client):
     r = client.post(
         "/auth/invites",
         headers=auth_header(employee["access_token"]),
-        json={"email": "someone@acme.example", "role": "employee"},
+        json={"email": "someone@company-a.com", "role": "employee"},
     )
     assert r.status_code == 403
 
@@ -120,9 +120,9 @@ def test_password_min_length_validation(client):
     r = client.post(
         "/auth/signup",
         json={
-            "company_name": "Acme",
+            "company_name": "Company A",
             "name": "Ada",
-            "email": "ada@acme.example",
+            "email": "ada@company-a.com",
             "password": "short",
         },
     )

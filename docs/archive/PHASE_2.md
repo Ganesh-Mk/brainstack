@@ -40,7 +40,7 @@ A boring, working multi-tenant SaaS skeleton.
 | `JWT_SECRET` (random 64-hex), `JWT_ALGORITHM`, expiry in root `.env` | Auth config is ready — the backend reads the **root `.env`** |
 | Pinecone account + key tested (no index yet) | The smoke script creates/uses the `brainstack` index (§8) |
 | Frontend auth pages (login/signup/forgot/invite/onboarding) — validation real, submit demo-wired | Phase 2 **rewires their submit handlers** to the real API. No visual changes |
-| `stores/session.ts` mock (Demo User, Acme/Globex, role simulator) | Becomes a **real session store** hydrated from the API (§9) |
+| `stores/session.ts` mock (Demo User, Lovely / Another Company, role simulator) | Becomes a **real session store** hydrated from the API (§9) |
 | RBAC UI: sidebar/palette filter by role via `lib/nav.ts` | Role now comes from the JWT instead of the simulator |
 
 ---
@@ -157,9 +157,9 @@ project's most important architectural rule (PROJECT_GUIDE.md §Phase 0).
 
 `pytest backend/tests/test_auth.py` against a throwaway schema:
 
-1. Signup Acme → login works, `/auth/me` returns role `admin`, tenant Acme.
-2. Signup Globex → its admin sees tenant Globex.
-3. **Isolation:** Acme's token can never read anything of Globex's (asserted
+1. Signup Company A → login works, `/auth/me` returns role `admin`, tenant Company A.
+2. Signup Company B → its admin sees tenant Company B.
+3. **Isolation:** Company A's token can never read anything of Company B's (asserted
    on `/auth/me` now; the pattern every future endpoint test copies).
 4. Wrong password → 401. Expired/garbage token → 401. Invite flow end-to-end.
 5. Non-admin calling `POST /auth/invites` → 403.

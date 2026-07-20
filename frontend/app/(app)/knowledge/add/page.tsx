@@ -25,7 +25,7 @@ function AddSourcesPreview() {
             <Globe className="h-4 w-4 text-accent" /> Paste a URL
           </p>
           <div className="mt-3 flex items-center gap-2 rounded-lg border border-border-strong bg-surface px-3 py-2 text-xs text-subtle">
-            <Link2 className="h-3.5 w-3.5" /> https://help.acme.example/…
+            <Link2 className="h-3.5 w-3.5" /> https://help.lovelydesign.in/…
           </div>
         </PreviewCard>
         <PreviewCard>

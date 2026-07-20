@@ -26,7 +26,7 @@ const STEPS = [
 export default function OnboardingPage() {
   const router = useRouter();
   const [step, setStep] = useState(0);
-  const [workspace, setWorkspace] = useState("Acme Corp");
+  const [workspace, setWorkspace] = useState("Lovely");
   const [invites, setInvites] = useState("");
 
   const finish = () => {

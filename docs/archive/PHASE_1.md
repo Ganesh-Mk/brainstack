@@ -599,7 +599,7 @@ The persistent frame every authenticated page renders inside.
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│ TOPBAR:  [🧠 BrainStack ▸ Acme Corp ▾]   ⌘K search…      🔔  ?   (AV▾) │
+│ TOPBAR:  [🧠 BrainStack ▸ Lovely ▾]      ⌘K search…      🔔  ?   (AV▾) │
 ├───────────────┬──────────────────────────────────────────────────────┤
 │  SIDEBAR      │                                                        │
 │  (grouped)    │   BREADCRUMB  ›  Page title                            │

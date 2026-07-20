@@ -24,7 +24,7 @@ const SAMPLE_DOCS = [
     added: "Jul 11",
   },
   {
-    name: "help.acme.example/refunds",
+    name: "help.lovelydesign.in/refunds",
     kind: "URL",
     icon: Globe,
     chunks: 36,

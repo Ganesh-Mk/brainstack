@@ -51,7 +51,7 @@ function ConnectionsPreview() {
                 </Badge>
               </p>
               <p className="mt-0.5 font-mono text-xs text-muted">
-                https://mcp.acme.example · streamable-http
+                https://mcp.lovelydesign.in · streamable-http
               </p>
             </div>
           </div>

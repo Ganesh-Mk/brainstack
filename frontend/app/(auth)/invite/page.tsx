@@ -35,13 +35,13 @@ function DemoInvite() {
       </h1>
       <p className="mt-1.5 text-sm leading-6 text-muted">
         <span className="font-medium text-primary">Priya N</span> invited you to
-        join the <span className="font-medium text-primary">Acme Corp</span>{" "}
+        join the <span className="font-medium text-primary">Lovely</span>{" "}
         workspace on BrainStack.
       </p>
       <div className="mt-5 flex items-center justify-center gap-2">
         <Badge variant="neutral">
           <Building2 className="h-3 w-3" />
-          Acme Corp
+          Lovely
         </Badge>
         <Badge variant="accent">
           <ShieldCheck className="h-3 w-3" />

@@ -88,7 +88,7 @@ export default function SignupPage() {
           <Label htmlFor="company">Company name</Label>
           <Input
             id="company"
-            placeholder="Acme Corp"
+            placeholder="Company name"
             value={company}
             onChange={(e) => setCompany(e.target.value)}
           />

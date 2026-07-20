@@ -8,10 +8,10 @@ import { Badge } from "@/components/ui/Badge";
 export const metadata: Metadata = { title: "Team & Roles" };
 
 const MEMBERS = [
-  { name: "You (Demo User)", email: "you@acme.example", role: "Admin" },
-  { name: "Priya N", email: "priya@acme.example", role: "Manager" },
-  { name: "Dev K", email: "dev@acme.example", role: "Employee" },
-  { name: "Sara M", email: "sara@acme.example", role: "Employee" },
+  { name: "You (Demo User)", email: "you@lovelydesign.in", role: "Admin" },
+  { name: "Priya N", email: "priya@lovelydesign.in", role: "Manager" },
+  { name: "Dev K", email: "dev@lovelydesign.in", role: "Employee" },
+  { name: "Sara M", email: "sara@lovelydesign.in", role: "Employee" },
 ];
 
 function TeamPreview() {
@@ -19,7 +19,7 @@ function TeamPreview() {
     <PreviewCard className="p-0">
       <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
         <p className="text-xs font-semibold tracking-wide text-subtle uppercase">
-          Members · Acme Corp
+          Members · Lovely
         </p>
         <span className="flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-xs font-medium text-on-primary">
           <UserPlus className="h-3.5 w-3.5" /> Invite

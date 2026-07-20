@@ -49,7 +49,7 @@ export function Topbar() {
   const authed = useSessionStore((s) => s.authed);
   const logout = useSessionStore((s) => s.logout);
   const role: Role = mounted ? storeRole : "admin";
-  const tenantName = mounted ? tenant.name : "Acme Corp";
+  const tenantName = mounted ? tenant.name : "Lovely";
 
   const signOut = () => {
     logout();

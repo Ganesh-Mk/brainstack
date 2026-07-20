@@ -10,7 +10,7 @@ function GeneralPreview() {
       <div>
         <p className="text-xs font-medium text-primary">Workspace name</p>
         <div className="mt-1.5 rounded-lg border border-border-strong bg-surface px-3 py-2 text-sm text-primary">
-          Acme Corp
+          Lovely
         </div>
       </div>
       <div>

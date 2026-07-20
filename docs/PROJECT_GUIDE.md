@@ -376,7 +376,7 @@ Without overlap, "within" and "30 days" end up in different chunks and neither i
 ```python
 {
   "text": "Our refund policy allows returns within 30 days...",
-  "tenant_id": "acme-corp",     # ← multi-tenancy lives here
+  "tenant_id": "lovely",     # ← multi-tenancy lives here
   "document_id": "doc_123",
   "filename": "policies-2024.pdf",
   "page_number": 7,             # ← your citations live here
@@ -405,7 +405,7 @@ you need 5 good ones.
 results = db.search(
     vector=embed("What is our refund policy?"),
     top_k=5,                        # give me the 5 nearest
-    filter={"tenant_id": "acme"},   # ← isolation
+    filter={"tenant_id": "lovely"},   # ← isolation
 )
 ```
 
