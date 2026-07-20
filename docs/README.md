@@ -6,8 +6,7 @@
 |---|---|
 | [`PROJECT_IDEA.md`](PROJECT_IDEA.md) | The product: what BrainStack is, who it's for, the feature set. |
 | [`PROJECT_GUIDE.md`](PROJECT_GUIDE.md) | The learning + build guide: every AI concept explained, and the 8-phase backend plan (Part 3). The north star. |
-| [`PHASE_5.md`](PHASE_5.md) | Phase 5 plan — grounded Q&A. |
-| [`PHASE_5_COMPLETE.md`](PHASE_5_COMPLETE.md) | **Phase 5 shipped** — Ask BrainStack live with streamed, cited answers; checklist inside. |
+| [`PHASE_6.md`](PHASE_6.md) | **Current phase** — the agent (LangGraph): tools that decide, live trace panel. |
 
 ## `archive/`
 
@@ -20,6 +19,7 @@ deployment settings, what was verified) but not part of active work.
 | `archive/PHASE_2.md` / `PHASE_2_COMPLETE.md` | Multi-tenant FastAPI backend + JWT auth — live on Render |
 | `archive/PHASE_3.md` / `PHASE_3_COMPLETE.md` | RAG from scratch (`lab/`) — all 6 experiments run; includes the full RAG explainer |
 | `archive/PHASE_4.md` / `PHASE_4_COMPLETE.md` | Real ingestion pipeline — live; Knowledge section unlocked |
+| `archive/PHASE_5.md` / `PHASE_5_COMPLETE.md` | Grounded Q&A + citations + streaming — live; Ask unlocked |
 
 ## How the numbering works
 
@@ -39,6 +39,7 @@ Current mapping:
 | Phase 3 | Backend Phase 1 — RAG from scratch | ✅ done (`lab/`, all experiments run) |
 | Phase 4 | Backend Phase 2 — real ingestion pipeline | ✅ live (Knowledge unlocked) |
 | Phase 5 | Backend Phase 3 — grounded Q&A + citations + streaming | ✅ live (Ask unlocked) |
+| Phase 6 | Backend Phase 4 — the agent (LangGraph) | 🔨 planned |
 
 ## The live stack
 
