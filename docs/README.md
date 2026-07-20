@@ -6,8 +6,7 @@
 |---|---|
 | [`PROJECT_IDEA.md`](PROJECT_IDEA.md) | The product: what BrainStack is, who it's for, the feature set. |
 | [`PROJECT_GUIDE.md`](PROJECT_GUIDE.md) | The learning + build guide: every AI concept explained, and the 8-phase backend plan (Part 3). The north star. |
-| [`PHASE_6.md`](PHASE_6.md) | Phase 6 plan — the agent. |
-| [`PHASE_6_COMPLETE.md`](PHASE_6_COMPLETE.md) | **Phase 6 shipped** — the LangGraph agent live with trace panel; checklist inside. |
+| [`PHASE_7.md`](PHASE_7.md) | **Current phase** — MCP + RBAC: the Company MCP Server, agent as MCP client, capability-based roles. |
 
 ## `archive/`
 
@@ -21,6 +20,7 @@ deployment settings, what was verified) but not part of active work.
 | `archive/PHASE_3.md` / `PHASE_3_COMPLETE.md` | RAG from scratch (`lab/`) — all 6 experiments run; includes the full RAG explainer |
 | `archive/PHASE_4.md` / `PHASE_4_COMPLETE.md` | Real ingestion pipeline — live; Knowledge section unlocked |
 | `archive/PHASE_5.md` / `PHASE_5_COMPLETE.md` | Grounded Q&A + citations + streaming — live; Ask unlocked |
+| `archive/PHASE_6.md` / `PHASE_6_COMPLETE.md` | The LangGraph agent — live; trace panel + /agent/trace unlocked |
 
 ## How the numbering works
 
@@ -41,6 +41,7 @@ Current mapping:
 | Phase 4 | Backend Phase 2 — real ingestion pipeline | ✅ live (Knowledge unlocked) |
 | Phase 5 | Backend Phase 3 — grounded Q&A + citations + streaming | ✅ live (Ask unlocked) |
 | Phase 6 | Backend Phase 4 — the agent (LangGraph) | ✅ live (trace panel + /agent/trace) |
+| Phase 7 | Backend Phase 5 — MCP + RBAC ⭐⭐ | 🔨 planned |
 
 ## The live stack
 
