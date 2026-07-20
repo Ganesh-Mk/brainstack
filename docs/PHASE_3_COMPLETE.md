@@ -1,8 +1,9 @@
 # ✅ Phase 3 — COMPLETE (Backend Phase 1: RAG From Scratch)
 
-> **Status: built and run. The retrieval half is fully verified with real
-> numbers; the two generation experiments are blocked on one thing only —
-> your Anthropic account has no credit.** Details and the fix are in Part C.
+> **Status: built, and all six experiments have now been run with real
+> numbers.** Anthropic credit was added, so the two generation experiments
+> completed — and one of them produced a result that contradicts the
+> textbook. See §6.4 in Part B.
 >
 > Nothing was deployed and nothing in the product changed. This phase exists
 > to make one mechanic — retrieval — genuinely understood before it gets
@@ -115,10 +116,12 @@ send it to Claude, print the answer.
 > *"Answer using ONLY the context below. If the answer is not in the context,
 > say you don't know and do not guess."*
 
-Without it, a question about something absent from the documents gets a
-confident, fluent, entirely invented answer. With it, the model declines. That
-single sentence is the difference between a demo and something a company can
-trust.
+The textbook reason for this rule is "otherwise the model invents an answer."
+**We tested that and it turned out not to be true on a current model** — see
+§6.4/6.5 in Part B. The rule still matters, but for different reasons: it makes
+the refusal *short, consistent, and machine-detectable*, and it makes that
+behaviour a guarantee of **your system** rather than a habit of whichever model
+you happen to be calling this month.
 
 → `build_prompt()` and `ask_claude()` in `lab/rag_lab.py`
 
@@ -190,31 +193,79 @@ deploy lean). Nothing here is deployed or imported by the product.
 - **⭐ Pinecone == our six lines:** across all 5 test questions, **identical
   top-5 in identical order**, max score difference **0.00045** (float32 noise).
 
+### ⚠️ §6.4 — the experiment that contradicted the textbook
+
+The classic demo says: ask about something absent from the documents with no
+grounding rule, and watch the model confidently invent an answer.
+
+**It wouldn't.** Four escalating conditions on `claude-haiku-4-5` — the
+cheapest current model, the one most likely to slip:
+
+```
+  [DECLINED]  neutral instruction + retrieved context
+  [DECLINED]  helpful HR persona + retrieved context
+  [DECLINED]  persona told "Never say you don't know — always give a number"
+  [DECLINED]  same pressured persona, NO retrieved context at all
+
+  invented in 0/4 conditions
+```
+
+It declined **even when explicitly instructed never to decline**, and even with
+no context at all. Same result for two other absent facts. The model appears to
+treat "a specific company's internal policy" as something it structurally
+cannot know.
+
+### §6.5 — so what *is* the grounding rule for?
+
+Compare the **shape** of the refusals rather than whether they refuse:
+
+```
+  "What is the parental leave policy?"
+     ungrounded : 685 chars, improvises advice ("check your contract",
+                  "policies vary by country")
+     grounded   :  81 chars, "I don't know. The parental leave policy is
+                  not mentioned in the provided context."
+```
+
+**8× shorter and always the identical shape.** Three real reasons to keep the
+rule, none of them the textbook one:
+
+1. **Consistent** — a predictable refusal is something the UI can *detect* and
+   act on ("no answer found — here's who to ask"). Free prose isn't parseable.
+2. **Yours, not borrowed** — §6.4's good behaviour belongs to this model, this
+   phrasing, today. It isn't contractual. The instruction moves the guarantee
+   into your system.
+3. **No adjacent invention** — ungrounded answers volunteer plausible
+   general-world advice next to company policy. For a company assistant that's
+   still a wrong answer, just a subtler one.
+
+### A measurement lesson worth more than the experiment
+
+The first run of §6.4 reported **"invented in 2/4"**. That was alarming — and
+wrong. My decline-detector matched `"don't know"` and `"not mentioned"` but
+missed `"I don't have information about…"`. The model had declined all four
+times; **the classifier was broken, not the system.**
+
+In evaluation work the measurement is at least as likely to be wrong as the
+thing being measured. This is exactly why Backend Phase 7 uses LLM-as-judge
+instead of substring matching.
+
 ---
 
 ## Part C — What YOU need to do
 
-### 🔴 One blocker: add Anthropic credit
+### ✅ Blocker cleared — credit added, everything ran
 
-The two generation experiments (hallucination and grounding) can't run:
+The two generation experiments were blocked on an empty Anthropic balance
+(`BadRequestError: Your credit balance is too low`). You added credit, and both
+now run — §6.4 and §6.5 above are real output. Total spend was a few dozen
+Haiku calls, i.e. small fractions of a cent.
 
-```
-BadRequestError: Your credit balance is too low to access the Anthropic API.
-```
-
-Your API key is valid — the earlier validation used the free `/v1/models`
-endpoint, which doesn't require a balance. Actual inference does.
-
-**Fix (~2 minutes):** console.anthropic.com → **Plans & Billing** → add credit.
-**$5 is far more than enough** — this lab's total spend is a handful of Haiku
-calls at fractions of a cent each. Set a monthly spend cap while you're there.
-
-Everything else already ran: embeddings, chunking, and cosine similarity are
-local and free, which is why 4 of the 6 experiments produced results anyway.
+**Nothing is blocking you now.** Every experiment reproduces on demand.
 
 ### ✅ Your test checklist
 
-Run these in order. Everything except the last two works right now.
+Run these in order. **Everything on this list works right now** — no setup left.
 
 **Setup (once):**
 - [ ] `cd lab`
@@ -234,8 +285,9 @@ Run these in order. Everything except the last two works right now.
       → vague query scores 0.359, specific scores 0.500
 
 **The pipeline end to end:**
-- [ ] `.venv/Scripts/python rag_lab.py "How many days of annual leave do I get?"`
-      → retrieval prints top-5 with scores (answer step needs credit)
+- [ ] `.venv/Scripts/python rag_lab.py "How many days of annual leave do I get and can I carry them over?"`
+      → top-5 with scores, then a correct grounded answer
+      (*25 days, does not roll over* — both facts from the retrieved chunks)
 - [ ] Ask **your own** question: `.venv/Scripts/python rag_lab.py "when is payday?"`
 - [ ] **Break it on purpose:** open `rag_lab.py`, set `CHUNK_SIZE = 3000`, re-run,
       and watch the retrieved chunks get worse. Set it back to 400.
@@ -248,13 +300,15 @@ Run these in order. Everything except the last two works right now.
       → **all 5 questions: identical top-5, identical order.** This is the
       "oh — it's the same thing" moment the phase is built around.
 
-**After adding Anthropic credit:**
-- [ ] `.venv/Scripts/python experiments.py 4` — ask about parental leave with no
-      grounding rule → expect a confident, **completely invented** answer
-- [ ] `.venv/Scripts/python experiments.py 5` — identical question, one sentence
-      added → expect "I don't know"
-- [ ] Write both answers into `lab/NOTES.md` under 6.4 / 6.5 (the section is
-      already stubbed for them)
+**The generation experiments (credit now added):**
+- [ ] `.venv/Scripts/python experiments.py 4` — four attempts to induce
+      hallucination → expect **`invented in 0/4`**. Read the four answers; note
+      it refuses even when told *"never say you don't know"*
+- [ ] `.venv/Scripts/python experiments.py 5` — same questions, grounded vs not
+      → expect ~**685 chars → 81 chars** and an identical refusal shape
+- [ ] **Form your own view:** given that the model already declines, would you
+      still ship the grounding rule? (My argument is in §6.5 — disagree with it
+      if you can defend the alternative.)
 
 **The real definition of done:**
 - [ ] Explain to someone else, without notes, why `refund` and `return policy`
@@ -276,13 +330,15 @@ nothing. Remove them any time with:
 
 - [x] Hand-written chunker, hand-written cosine similarity, JSON store — no
       framework used until the end
-- [x] All six experiments implemented; **4 of 6 run with real results**, 2
-      blocked only on account credit
+- [x] **All six experiments run with real results** (4–5 completed after credit
+      was added)
 - [x] Same query returns the **same top-5 in the same order** from the
       hand-rolled retriever and from Pinecone — verified across 5 questions
-- [x] Results and surprises written down (`lab/NOTES.md`)
+- [x] Full pipeline produces a correct grounded answer end to end
+- [x] Results and surprises written down (`lab/NOTES.md`), including the two
+      findings that contradicted the plan
 - [x] Nothing deployed, no product page changed, `backend/` untouched
-- [ ] **You:** add Anthropic credit and run experiments 4 & 5
+- [ ] **You:** work through the test checklist above
 - [ ] **You:** be able to explain embeddings without notes
 
 **Next:** `PROJECT_GUIDE.md` **Backend Phase 2 — the real ingestion pipeline**

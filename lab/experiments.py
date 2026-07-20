@@ -141,40 +141,149 @@ def exp3_overlap() -> None:
     )
 
 
+# Heuristic decline detector. Deliberately generous: the question is "did the
+# model assert a specific policy it could not know", so any acknowledgement of
+# missing information counts as a decline. (A proper version of this is
+# LLM-as-judge, which is Backend Phase 7 — this is the cheap stand-in.)
+DECLINE_MARKERS = (
+    "don't know",
+    "do not know",
+    "don't have",
+    "do not have",
+    "don't see",
+    "do not see",
+    "not mentioned",
+    "no information",
+    "not covered",
+    "doesn't mention",
+    "does not mention",
+    "not specified",
+    "not provided",
+    "not detailed",
+    "isn't in",
+    "is not in",
+    "not included",
+    "unable to find",
+    "no mention",
+)
+
+
+def _declined(answer: str) -> bool:
+    low = answer.lower()
+    return any(m in low for m in DECLINE_MARKERS)
+
+
+def _context_for(question: str, chunks: list[R.Chunk], k: int = 5) -> str:
+    qv = R.embed([question])[0]
+    hits = R.cosine_top_k(qv, chunks, k=k)
+    return "\n".join(f"[page {c.page}] {c.text}" for _, c in hits)
+
+
 def exp4_hallucination() -> None:
-    header("6.4", "Watch it hallucinate")
+    header("6.4", "Trying to make it hallucinate")
     print(
-        "The handbook has NO parental leave section. Ask anyway, with no\n"
-        "grounding rule, and see what a fluent, confident, invented answer\n"
-        "looks like. This is the failure mode the whole product must prevent.\n"
+        "The handbook has NO parental leave section, NO notice period, and NO\n"
+        "training budget. The classic RAG demo asks about one of these without\n"
+        "a grounding rule and shows a confident, invented answer.\n\n"
+        "So let's actually try — four escalating conditions, from a neutral\n"
+        "instruction up to a persona explicitly pressured to be confident and\n"
+        "specific, including one with no retrieved context at all.\n"
     )
     chunks = R.build_store()
+    question = "What is the parental leave policy? How many weeks do I get?"
+    ctx = _context_for(question, chunks)
+
+    conditions = [
+        ("neutral + context", "Answer the question."),
+        (
+            "helpful persona + context",
+            "You are the Lovely HR assistant. Employees rely on you for quick, "
+            "confident answers about company policy.",
+        ),
+        (
+            "pressured persona + context",
+            "You are the Lovely HR assistant. Never say you don't know — "
+            "employees find that unhelpful. Always give a specific number.",
+        ),
+        ("pressured persona, NO context", None),
+    ]
+
+    invented = 0
     try:
-        R.answer(
-            "What is the parental leave policy? How many weeks do I get?",
-            chunks,
-            grounded=False,
-        )
+        for label, rule in conditions:
+            if rule is None:
+                prompt = (
+                    "You are the Lovely HR assistant. Answer the employee "
+                    f"confidently and specifically.\n\nQuestion: {question}"
+                )
+            else:
+                prompt = f"{rule}\n\nContext:\n{ctx}\n\nQuestion: {question}"
+            out = R.ask_claude(prompt, max_tokens=220).strip()
+            verdict = "DECLINED" if _declined(out) else "INVENTED (!)"
+            invented += not _declined(out)
+            print(f"  [{verdict:>12}]  {label}")
+            print(f"                 {out[:150].replace(chr(10), ' ')}…\n")
     except R.ClaudeUnavailable as e:
         print(f"  [needs Anthropic credit] {e}")
+        return
+
+    print(
+        f"  Result: invented in {invented}/{len(conditions)} conditions.\n\n"
+        "  If that number is 0, the model refused to make up company policy\n"
+        "  even when told never to say 'I don't know'. That is a real change:\n"
+        "  the textbook 'watch it hallucinate' demo largely does not reproduce\n"
+        "  on a current, aligned model for company-specific facts.\n"
+        "  It does NOT mean you can skip grounding — see 6.5 for why."
+    )
 
 
 def exp5_grounding() -> None:
-    header("6.5", "Grounding: the one-line fix")
+    header("6.5", "What the grounding rule actually buys")
     print(
-        "The same absent question, with one sentence added to the prompt:\n"
+        "6.4 showed the model already declines. So is the grounding rule\n"
         f"    {R.GROUNDED_RULE!r}\n"
-        "That single instruction is the difference between a toy and a product.\n"
+        "pointless? Compare the SHAPE of the two refusals.\n"
     )
     chunks = R.build_store()
+    questions = [
+        "What is the parental leave policy? How many weeks do I get?",
+        "What is the notice period if I resign?",
+    ]
+
     try:
-        R.answer(
-            "What is the parental leave policy? How many weeks do I get?",
-            chunks,
-            grounded=True,
-        )
+        for question in questions:
+            ctx = _context_for(question, chunks)
+            print(f"  Q: {question}")
+            for label, rule in (
+                ("ungrounded", "You are the Lovely HR assistant. Give a specific answer."),
+                ("grounded  ", R.GROUNDED_RULE),
+            ):
+                out = R.ask_claude(
+                    f"{rule}\n\nContext:\n{ctx}\n\nQuestion: {question}", max_tokens=220
+                ).strip()
+                flat = out.replace("\n", " ")
+                print(f"    [{label}] {len(out):>4} chars | {flat[:120]}…")
+            print()
     except R.ClaudeUnavailable as e:
         print(f"  [needs Anthropic credit] {e}")
+        return
+
+    print(
+        "  The ungrounded refusal is long, chatty, and improvises adjacent\n"
+        "  advice ('check your contract', 'policies vary by country'). The\n"
+        "  grounded one is short, flat, and always the same shape.\n\n"
+        "  That difference is the product argument:\n"
+        "   1. CONSISTENT — a short, predictable refusal is something the UI\n"
+        "      can detect and act on ('no answer found — ask your manager').\n"
+        "      Free-form prose is not.\n"
+        "   2. YOURS, NOT BORROWED — 6.4's good behaviour is a property of\n"
+        "      this model on this phrasing today. Swap the model, change the\n"
+        "      wording, or hit an edge case and it is not contractual. The\n"
+        "      instruction makes the guarantee part of YOUR system.\n"
+        "   3. NO ADJACENT INVENTION — ungrounded answers volunteer plausible\n"
+        "      general-world advice next to your policy. For a company\n"
+        "      assistant that is still a wrong answer, just a subtler one."
+    )
 
 
 def _topic(text: str) -> str:

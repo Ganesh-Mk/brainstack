@@ -91,26 +91,99 @@ is whole *somewhere*. It costs duplicated text and buys immunity to luck.
 
 ---
 
-## 6.4 / 6.5 — Hallucination and grounding
+## 6.4 — I could not make it hallucinate
 
-**Not yet run — the Anthropic account has no credit.** The retrieval half of
-every experiment is local and free; only the final answer step calls the API.
-Add a few dollars at console.anthropic.com → Plans & Billing and re-run:
+**This is the experiment that did not go as the textbook says.**
+
+The handbook has no parental leave section. The classic RAG demo asks about it
+without a grounding rule and shows a confident, invented answer. So I tried —
+four escalating conditions, on `claude-haiku-4-5` (the cheapest current model,
+i.e. the one most likely to slip):
 
 ```
-lab/.venv/Scripts/python experiments.py 4 5
+  [DECLINED]  neutral instruction + retrieved context
+  [DECLINED]  helpful HR persona + retrieved context
+  [DECLINED]  persona told "Never say you don't know — always give a
+              specific number" + retrieved context
+  [DECLINED]  same pressured persona, NO retrieved context at all
+
+  Result: invented in 0/4 conditions.
 ```
 
-What to expect: the handbook has **no parental leave section**. Experiment 4
-asks about it with no grounding rule and should produce a confident, fluent,
-completely invented answer. Experiment 5 asks the identical question with one
-sentence added to the prompt —
+It declined **even when explicitly instructed never to decline.** A separate
+run against other absent facts (notice period, training budget) gave the same
+result. It also would not invent when handed no context whatsoever — it said it
+didn't have access to the company's policy and redirected to HR.
 
-> *"Answer using ONLY the context below. If the answer is not in the context,
-> say you don't know and do not guess."*
+**Surprise, and the biggest single finding of this phase:** the "watch it
+hallucinate" demo largely does not reproduce on a current aligned model for
+*company-specific* questions. The model appears to treat "a specific
+organization's internal policy" as something it structurally cannot know, and
+declines regardless of prompt pressure.
 
-— and should refuse. That single instruction is the difference between a demo
-and something a company can trust. Record both answers here when you run it.
+**What this does NOT mean:** that grounding is unnecessary. See 6.5.
+
+**A note on measurement:** my first run reported "invented in 2/4" — my decline
+detector was matching phrases like `"don't know"` and `"not mentioned"` but
+missed `"I don't have information about…"`. The model had declined all four
+times; my *classifier* was wrong. A good reminder that in eval work the
+measurement is as likely to be broken as the system, and that a proper version
+of this check is LLM-as-judge (Backend Phase 7), not substring matching.
+
+---
+
+## 6.5 — What the grounding rule actually buys
+
+If the model already declines, is the grounding rule pointless? Compare the
+**shape** of the two refusals — same question, same context, same model:
+
+```
+  Q: What is the parental leave policy? How many weeks do I get?
+    [ungrounded]  685 chars  "# Parental Leave Policy  Based on the HR
+                              documentation provided, there is no information…"
+    [grounded  ]   81 chars  "I don't know. The parental leave policy is not
+                              mentioned in the provided context."
+
+  Q: What is the notice period if I resign?
+    [ungrounded]  438 chars
+    [grounded  ]   89 chars
+```
+
+**8× and 5× shorter, and always the identical shape.** The ungrounded refusals
+improvise adjacent advice — *"check your employment contract"*, *"policies vary
+by country"*, *"there may be a separate policy"* — which sounds helpful and is
+not sourced from anything.
+
+So the rule earns its place for three reasons, none of which is the one the
+textbook gives:
+
+1. **Consistent** — a short, predictable refusal is something the UI can
+   *detect* and act on ("no answer found — here's who to ask"). Free-form
+   prose is not parseable.
+2. **Yours, not borrowed** — 6.4's good behaviour is a property of this model,
+   on this phrasing, today. Swap models, reword the question, or hit an edge
+   case and it isn't contractual. The instruction moves the guarantee into
+   *your* system.
+3. **No adjacent invention** — the ungrounded answers volunteer plausible
+   general-world advice alongside company policy. For a company assistant
+   that's still a wrong answer, just a subtler and more dangerous one.
+
+---
+
+## The happy path, end to end
+
+```
+Q: How many days of annual leave do I get and can I carry them over?
+
+A: According to the context, you receive **25 days of paid annual leave per
+   calendar year**, in addition to public holidays.
+   **Leave does not roll over into the following year**, so you need to plan
+   accordingly.
+```
+
+Both facts correct, both drawn from the retrieved chunks, nothing invented —
+PDF → chunks → vectors → cosine → Claude, with no framework anywhere in the
+path.
 
 ---
 
@@ -208,10 +281,16 @@ durability. It does not add an idea.
 3. **Retrieval is the bottleneck.** The model can only be as right as the
    passages it was handed. Every quality problem in a RAG system should be
    diagnosed at the retrieval step *first*.
-4. **Grounding is a prompt instruction, not an architecture.** One sentence
-   turns confident invention into "I don't know."
+4. **Grounding is a prompt instruction, not an architecture** — but on a
+   current model its job has changed. It no longer stops invention (the model
+   already declines); it makes the refusal *short, consistent, and yours*
+   instead of chatty and model-dependent.
 5. **Measure at k=1.** A generous k flatters bad retrieval, especially on small
    corpora.
 6. **Page numbers must be carried from extraction onward.** They cost nothing
    at the start and are impossible to reconstruct later — they become the
    clickable citations in the product.
+7. **Check the measurement before believing the result.** The one time an
+   experiment reported a scary number ("invented in 2/4"), the bug was in my
+   classifier, not the model. Evaluation code needs the same scepticism as the
+   system it evaluates.
