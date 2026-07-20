@@ -47,10 +47,12 @@ type GNode = {
   badge?: string;
 };
 
+/* Widths are sized to the mono subtitle (≈5.7px per char at 9.5px) so no
+   label ever spills outside its rounded box. */
 const NODES: GNode[] = [
-  { id: "q", x: 10, y: 183, w: 130, h: 54, title: "Question", sub: "from anyone on the team" },
-  { id: "planner", x: 190, y: 183, w: 120, h: 54, title: "Planner", sub: "decides what's needed" },
-  { id: "router", x: 360, y: 183, w: 110, h: 54, title: "Router", sub: "picks the tools" },
+  { id: "q", x: 6, y: 183, w: 152, h: 54, title: "Question", sub: "from anyone on the team" },
+  { id: "planner", x: 196, y: 183, w: 142, h: 54, title: "Planner", sub: "decides what's needed" },
+  { id: "router", x: 376, y: 183, w: 110, h: 54, title: "Router", sub: "picks the tools" },
   { id: "knowledge", x: 530, y: 60, w: 170, h: 54, title: "Knowledge search", sub: "native RAG · your docs" },
   { id: "web", x: 530, y: 183, w: 170, h: 54, title: "Web search", sub: "native · when useful" },
   { id: "mcp", x: 530, y: 306, w: 170, h: 54, title: "Company MCP", sub: "tickets · analytics", badge: "manager-only" },
@@ -62,11 +64,11 @@ const NODES: GNode[] = [
 type Edge = { id: string; d: string };
 
 const EDGES: Edge[] = [
-  { id: "q-planner", d: "M140,210 L190,210" },
-  { id: "planner-router", d: "M310,210 L360,210" },
-  { id: "router-knowledge", d: "M470,197 C505,190 495,87 530,87" },
-  { id: "router-web", d: "M470,210 L530,210" },
-  { id: "router-mcp", d: "M470,223 C505,230 495,333 530,333" },
+  { id: "q-planner", d: "M158,210 L196,210" },
+  { id: "planner-router", d: "M338,210 L376,210" },
+  { id: "router-knowledge", d: "M486,197 C516,190 500,87 530,87" },
+  { id: "router-web", d: "M486,210 L530,210" },
+  { id: "router-mcp", d: "M486,223 C516,230 500,333 530,333" },
   { id: "knowledge-synthesize", d: "M700,87 C735,87 725,203 760,203" },
   { id: "web-synthesize", d: "M700,210 L760,210" },
   { id: "mcp-synthesize", d: "M700,333 C735,333 725,217 760,217" },
@@ -74,7 +76,7 @@ const EDGES: Edge[] = [
   { id: "reflect-answer", d: "M1048,237 L1048,306" },
 ];
 
-const LOOP_EDGE = "M1048,183 C1048,40 415,40 415,183";
+const LOOP_EDGE = "M1048,183 C1048,40 431,40 431,183";
 
 /** Which nodes/edges light up at each beat of the loop. */
 const SEQUENCE: { nodes: NodeId[]; edges: string[] }[] = [
@@ -137,7 +139,7 @@ function DesktopGraph() {
   const { litNodes, litEdges, passed } = useSequence(inView);
 
   return (
-    <div ref={ref} className="hidden md:block">
+    <div ref={ref} className="hidden lg:block">
       <svg
         viewBox="0 0 1140 400"
         className="w-full"
@@ -219,7 +221,7 @@ function DesktopGraph() {
                 x={n.x + n.w / 2}
                 y={n.y + 41}
                 textAnchor="middle"
-                fontSize="10.5"
+                fontSize="9.5"
                 fontFamily="var(--font-mono)"
                 style={{ fill: "var(--ink-400)" }}
               >
@@ -309,7 +311,7 @@ function MobileGraph() {
   }, [inView, reduced]);
 
   return (
-    <div ref={ref} className="md:hidden">
+    <div ref={ref} className="lg:hidden">
       <ol className="relative space-y-3">
         <div
           aria-hidden

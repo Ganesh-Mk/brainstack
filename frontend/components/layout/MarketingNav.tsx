@@ -38,7 +38,7 @@ export function MarketingNav() {
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-6">
         <BrandMark />
 
-        <nav className="hidden items-center gap-1 md:flex">
+        <nav className="hidden items-center gap-1 lg:flex">
           {MARKETING_LINKS.map((link) => (
             <Link
               key={link.href}
@@ -56,7 +56,7 @@ export function MarketingNav() {
           ))}
         </nav>
 
-        <div className="hidden items-center gap-2 md:flex">
+        <div className="hidden items-center gap-2 lg:flex">
           <ButtonLink href="/login" variant="ghost">
             Log in
           </ButtonLink>
@@ -70,7 +70,7 @@ export function MarketingNav() {
           onClick={() => setOpen((o) => !o)}
           aria-label={open ? "Close menu" : "Open menu"}
           aria-expanded={open}
-          className="rounded-lg p-2 text-muted transition hover:bg-surface-raised hover:text-primary md:hidden"
+          className="rounded-lg p-2 text-muted transition hover:bg-surface-raised hover:text-primary lg:hidden"
         >
           {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
@@ -84,7 +84,7 @@ export function MarketingNav() {
             animate={{ height: "auto", opacity: 1 }}
             exit={reduced ? undefined : { height: 0, opacity: 0 }}
             transition={{ duration: 0.32, ease: EASE }}
-            className="overflow-hidden border-t border-border bg-surface md:hidden"
+            className="overflow-hidden border-t border-border bg-surface lg:hidden"
           >
             <nav className="space-y-1 px-6 py-4">
               {MARKETING_LINKS.map((link, i) => (

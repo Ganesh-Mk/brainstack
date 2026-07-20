@@ -21,7 +21,6 @@ import math
 import re
 import uuid
 from dataclasses import asdict, dataclass
-from typing import Generator, Iterable
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -256,29 +255,6 @@ def history_messages(
     return [{"role": r.role, "content": r.content} for r in rows]
 
 
-def stream_answer(
-    question: str,
-    sources: list[Source],
-    history: Iterable[dict] = (),
-) -> Generator[str, None, None]:
-    """Yields text fragments from Claude. Raises ChatNotConfigured if the key
-    is absent; lets anthropic errors propagate for the caller to translate."""
-    settings = get_settings()
-    if not settings.ANTHROPIC_API_KEY:
-        raise ChatNotConfigured(
-            "The answer model is not configured on this server."
-        )
-
-    import anthropic
-
-    client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
-    messages = [*history, {"role": "user", "content": build_user_prompt(question, sources)}]
-
-    with client.messages.stream(
-        model=settings.LLM_MODEL_DEV,
-        max_tokens=settings.CHAT_MAX_TOKENS,
-        system=SYSTEM_PROMPT,
-        messages=messages,
-    ) as stream:
-        for text in stream.text_stream:
-            yield text
+# NOTE: the Phase-5 direct streaming path (stream_answer) was retired when
+# the agent became the only ask path — the grounding rule lives on in
+# SYSTEM_PROMPT above and in the agent's own prompt.

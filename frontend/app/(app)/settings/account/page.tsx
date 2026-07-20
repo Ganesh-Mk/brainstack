@@ -38,9 +38,8 @@ export default function AccountPage() {
           onSubmit={(e) => {
             e.preventDefault();
             toast(
-              "Profile saved (demo)",
-              "Real accounts arrive with Backend Phase 0.",
-              "success",
+              "Profile editing isn't wired up yet",
+              "Your account itself is live — name and email edits are on the list.",
             );
           }}
         >

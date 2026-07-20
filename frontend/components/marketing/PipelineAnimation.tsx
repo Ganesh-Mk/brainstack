@@ -119,17 +119,17 @@ export function PipelineAnimation() {
   return (
     <div className="relative">
       {/* Desktop: horizontal rail · Mobile: vertical rail */}
-      <ol className="relative grid gap-6 md:grid-cols-5 md:gap-4">
+      <ol className="relative grid gap-6 lg:grid-cols-5 lg:gap-4">
         {/* connector — behind the icon tiles */}
         <div
           aria-hidden
-          className="absolute top-0 bottom-0 left-[23px] w-px bg-border md:top-[23px] md:right-10 md:bottom-auto md:left-10 md:h-px md:w-auto"
+          className="absolute top-0 bottom-0 left-[23px] w-px bg-border lg:top-[23px] lg:right-10 lg:bottom-auto lg:left-10 lg:h-px lg:w-auto"
         />
 
         {STAGES.map((stage, i) => {
           const state = i < active ? 2 : i === active ? 1 : 0;
           return (
-            <li key={stage.title} className="relative flex gap-4 md:flex-col md:gap-0">
+            <li key={stage.title} className="relative flex gap-4 lg:flex-col lg:gap-0">
               <div className="relative shrink-0">
                 <motion.span
                   animate={
@@ -165,7 +165,7 @@ export function PipelineAnimation() {
                 )}
               </div>
 
-              <div className="pb-2 md:mt-4 md:pb-0">
+              <div className="pb-2 lg:mt-4 lg:pb-0">
                 <h3
                   className={cn(
                     "flex items-center gap-1.5 text-sm font-semibold transition-colors",

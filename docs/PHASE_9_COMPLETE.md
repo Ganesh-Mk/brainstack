@@ -48,8 +48,9 @@ runs). So the Phase 8 reranker decision can now be stated the senior way:
 
 ## Verified
 
-- 70 backend tests → **79** after Phase 9 (trace on ok + error, dashboard
-  scoping + role-openness, admin 403s, percentile/judge mechanics).
+- 9 new backend tests (suite at 70 with them: trace on ok + error,
+  dashboard scoping + role-openness, admin 403s, percentile/judge
+  mechanics).
 - Production e2e **12/12** — including a found-in-the-wild observability
   win: the first ask after idle showed `first_token 26.2s of 26.9s total`,
   which is the free-tier cold start, now measurable instead of anecdotal.

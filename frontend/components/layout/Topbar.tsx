@@ -67,7 +67,9 @@ export function Topbar() {
         <Menu className="h-5 w-5" />
       </button>
 
-      {/* Tenant switcher (mock — real multi-tenancy lands in Backend Phase 0) */}
+      {/* Workspace indicator. Accounts belong to one workspace; in demo mode
+          the switcher shows sample workspaces to make the tenancy model
+          visible. */}
       <Dropdown
         align="left"
         trigger={
