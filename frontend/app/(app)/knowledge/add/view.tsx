@@ -1,27 +1,37 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   ArrowRight,
+  CircleCheck,
   FileText,
   FileUp,
   Globe,
   Upload,
+  Workflow,
   X,
 } from "lucide-react";
-import { api, ApiError, isBackendConfigured } from "@/lib/api";
+import { api, ApiError, isBackendConfigured, isProcessing } from "@/lib/api";
 import { cn } from "@/lib/cn";
+import { timeAgo } from "@/lib/time";
+import {
+  docMeta,
+  PipelineStages,
+  SourceIcon,
+} from "@/components/knowledge/bits";
 import { PageHeader } from "@/components/patterns/PageHeader";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { FieldError, Hint, Input, Label } from "@/components/ui/Field";
+import { useDocuments } from "@/hooks/useDocuments";
 import { useSessionStore } from "@/stores/session";
 import { toast } from "@/stores/toast";
 
 const MAX_MB = 15;
 const MAX_BYTES = MAX_MB * 1024 * 1024;
+const SHOW_LATEST = 8;
 
 function prettySize(bytes: number): string {
   if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
@@ -29,9 +39,14 @@ function prettySize(bytes: number): string {
 }
 
 export function AddSourcesView() {
-  const router = useRouter();
   const token = useSessionStore((s) => s.token);
   const demo = !isBackendConfigured;
+
+  // The pipeline below updates live (1.5s poll while anything processes) —
+  // adding a source and watching it index is ONE page now.
+  const { docs, refresh } = useDocuments();
+  const latest = (docs ?? []).slice(0, SHOW_LATEST);
+  const active = (docs ?? []).filter((d) => isProcessing(d.status)).length;
 
   // ── file upload state ──────────────────────────────────────────────────
   const inputRef = useRef<HTMLInputElement>(null);
@@ -96,11 +111,12 @@ export function AddSourcesView() {
     }
     setUploading(false);
     if (ok > 0) {
+      setFiles([]);
       toast(
         ok === 1 ? "Ingestion started" : `${ok} documents queued`,
-        "Watch progress in the Library.",
+        "Watch it move through the pipeline below.",
       );
-      router.push("/knowledge");
+      void refresh(); // pipeline section picks it up immediately
     }
   };
 
@@ -119,8 +135,9 @@ export function AddSourcesView() {
     setSubmittingUrl(true);
     try {
       await api.ingestUrl(token, value);
-      toast("Fetching page", "The article is being read and indexed.");
-      router.push("/knowledge");
+      setUrl("");
+      toast("Fetching page", "Watch it move through the pipeline below.");
+      void refresh();
     } catch (err) {
       setUrlError(
         err instanceof ApiError ? err.message : "Something went wrong.",
@@ -131,12 +148,21 @@ export function AddSourcesView() {
   };
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="max-w-5xl space-y-6">
       <PageHeader
         icon={Upload}
         title="Add sources"
-        description="Grow this workspace's knowledge. Every source is read, chunked and indexed — then your assistant can answer from it."
-        badge={demo ? <Badge variant="neutral">Demo mode</Badge> : undefined}
+        description="Grow this workspace's knowledge and watch it index live — every source is read, chunked, embedded and indexed right below."
+        badge={
+          demo ? (
+            <Badge variant="neutral">Demo mode</Badge>
+          ) : active > 0 ? (
+            <Badge variant="accent">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" />
+              {active} processing
+            </Badge>
+          ) : undefined
+        }
       />
 
       <div className="grid gap-4 lg:grid-cols-5">
@@ -317,6 +343,91 @@ export function AddSourcesView() {
           </Card>
         </div>
       </div>
+
+      {/* ── The pipeline, live ─────────────────────────────────────────── */}
+      {!demo && latest.length > 0 && (
+        <section className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-sm font-semibold text-primary">
+              <Workflow className="h-4 w-4 text-accent" />
+              Ingestion pipeline
+              {active > 0 && (
+                <Badge variant="accent">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" />
+                  live
+                </Badge>
+              )}
+            </h2>
+            <Link
+              href="/knowledge"
+              className="text-xs font-medium text-accent hover:underline"
+            >
+              All sources →
+            </Link>
+          </div>
+
+          <div className="space-y-3">
+            {latest.map((doc) => {
+              const embedding =
+                doc.status === "embedding" && doc.chunk_count > 0;
+              const pct = embedding
+                ? Math.round((doc.chunks_done / doc.chunk_count) * 100)
+                : doc.status === "ready"
+                  ? 100
+                  : null;
+              return (
+                <Card key={doc.id} className="py-4">
+                  <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <SourceIcon sourceType={doc.source_type} />
+                      <div className="min-w-0">
+                        <p className="max-w-80 truncate text-sm font-medium text-primary">
+                          {doc.title}
+                        </p>
+                        <p className="text-xs text-subtle">
+                          {docMeta(doc) || "Processing…"} ·{" "}
+                          {timeAgo(doc.created_at)}
+                        </p>
+                      </div>
+                    </div>
+                    <PipelineStages doc={doc} />
+                  </div>
+                  {/* one clear progress line under the stages */}
+                  {isProcessing(doc.status) && (
+                    <div className="mt-3 flex items-center gap-3">
+                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-raised">
+                        <div
+                          className={cn(
+                            "h-full rounded-full bg-accent transition-all duration-500",
+                            pct === null && "animate-pulse",
+                          )}
+                          style={{ width: pct !== null ? `${Math.max(pct, 4)}%` : "18%" }}
+                        />
+                      </div>
+                      <span className="shrink-0 font-mono text-[11px] tabular-nums text-subtle">
+                        {embedding
+                          ? `${doc.chunks_done}/${doc.chunk_count} chunks`
+                          : "working…"}
+                      </span>
+                    </div>
+                  )}
+                  {doc.status === "ready" && (
+                    <p className="mt-2.5 flex items-center gap-1.5 text-xs text-success">
+                      <CircleCheck className="h-3.5 w-3.5" />
+                      Indexed — your assistant can answer from it now.
+                    </p>
+                  )}
+                  {doc.status === "failed" && doc.error && (
+                    <p className="mt-3 rounded-lg border border-danger/25 bg-danger/5 px-3 py-2 text-xs leading-5 text-danger">
+                      {doc.error}
+                    </p>
+                  )}
+                </Card>
+              );
+            })}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

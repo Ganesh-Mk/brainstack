@@ -3,14 +3,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowUp,
-  ExternalLink,
+  ChevronRight,
   FileText,
   Globe,
   MessageSquare,
   MessagesSquare,
+  PanelLeft,
   Plus,
   Sparkles,
   Trash2,
+  Workflow,
 } from "lucide-react";
 import {
   api,
@@ -25,10 +27,11 @@ import {
 import { cn } from "@/lib/cn";
 import { MessageContent } from "@/components/ask/MessageContent";
 import { PdfViewer } from "@/components/ask/PdfViewer";
-import { TraceSteps } from "@/components/ask/TraceSteps";
+import { TraceSteps, traceDuration } from "@/components/ask/TraceSteps";
 import { Badge } from "@/components/ui/Badge";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { Tooltip } from "@/components/ui/Tooltip";
 import { useSessionStore } from "@/stores/session";
 import { toast } from "@/stores/toast";
 
@@ -78,12 +81,86 @@ const DEMO_MESSAGES: ApiMessage[] = [
   },
 ];
 
+// ── Small pieces ────────────────────────────────────────────────────────────
+
+/** "How the agent worked" — the trace lives INSIDE the chat now, as a
+ * collapsible disclosure on each answered message. */
+function InlineTrace({ steps }: { steps: ApiTraceStep[] }) {
+  const [open, setOpen] = useState(false);
+  if (steps.length === 0) return null;
+  const duration = traceDuration(steps);
+  return (
+    <div className="mb-2.5">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-1.5 rounded-lg px-1.5 py-1 text-[11px] font-medium text-subtle transition hover:bg-surface-raised hover:text-primary"
+      >
+        <ChevronRight
+          className={cn("h-3 w-3 transition-transform", open && "rotate-90")}
+        />
+        <Workflow className="h-3 w-3 text-accent" />
+        How the agent worked
+        <span className="font-mono text-[10px]">
+          · {steps.length} {steps.length === 1 ? "step" : "steps"}
+          {duration ? ` · ${duration}` : ""}
+        </span>
+      </button>
+      {open && (
+        <div className="mt-2 rounded-xl border border-border bg-surface p-3">
+          <TraceSteps steps={steps} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Numbered source chips under an answer — hover previews via the same
+ * citation chips, click opens the PDF page or web page. */
+function SourcesRow({
+  sources,
+  onOpen,
+}: {
+  sources: ApiSource[];
+  onOpen: (s: ApiSource) => void;
+}) {
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-border pt-2.5">
+      <span className="text-[10px] font-semibold tracking-wide text-subtle uppercase">
+        Sources
+      </span>
+      {sources.map((s) => (
+        <Tooltip key={s.n} label={s.text.slice(0, 140) + (s.text.length > 140 ? "…" : "")}>
+          <button
+            type="button"
+            onClick={() => onOpen(s)}
+            className="flex max-w-48 items-center gap-1.5 rounded-lg border border-border bg-canvas px-2 py-1 text-[11px] text-muted transition hover:border-accent hover:text-primary"
+          >
+            <span className="flex h-3.5 min-w-3.5 items-center justify-center rounded bg-accent-soft px-0.5 font-mono text-[9px] font-semibold text-accent-700">
+              {s.n}
+            </span>
+            <span className="min-w-0 truncate">{s.title}</span>
+            {s.source_type === "url" ? (
+              <Globe className="h-2.5 w-2.5 shrink-0 text-subtle" />
+            ) : (
+              <span className="shrink-0 font-mono text-[9px] text-subtle">
+                p.{s.page}
+              </span>
+            )}
+          </button>
+        </Tooltip>
+      ))}
+    </div>
+  );
+}
+
 // ── The view ────────────────────────────────────────────────────────────────
 
 export function AskView() {
   const demo = !isBackendConfigured;
   const token = useSessionStore((s) => s.token);
 
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [conversations, setConversations] = useState<ApiConversation[] | null>(
     demo ? [] : null,
   );
@@ -96,13 +173,8 @@ export function AskView() {
   const [liveText, setLiveText] = useState("");
   const [liveSources, setLiveSources] = useState<ApiSource[] | null>(null);
   const [liveTrace, setLiveTrace] = useState<ApiTraceStep[]>([]);
-  const [panelTab, setPanelTab] = useState<"sources" | "trace">("sources");
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
 
-  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(
-    demo ? "demo-a" : null,
-  );
-  const [activeCitation, setActiveCitation] = useState<number | null>(null);
   const [pdf, setPdf] = useState<{ id: string; page: number; title: string } | null>(
     null,
   );
@@ -131,14 +203,9 @@ export function AskView() {
       if (!token) return;
       setActiveId(id);
       setLoadingMessages(true);
-      setActiveCitation(null);
       try {
         const detail = await api.getConversation(token, id);
         setMessages(detail.messages);
-        const lastAssistant = [...detail.messages]
-          .reverse()
-          .find((m) => m.role === "assistant" && m.sources?.length);
-        setSelectedMessageId(lastAssistant?.id ?? null);
       } catch {
         toast("Couldn't open conversation", undefined, "error");
       } finally {
@@ -158,7 +225,6 @@ export function AskView() {
     setConversations((prev) => [convo, ...(prev ?? [])]);
     setActiveId(convo.id);
     setMessages([]);
-    setSelectedMessageId(null);
     inputRef.current?.focus();
   };
 
@@ -170,7 +236,6 @@ export function AskView() {
       if (activeId === id) {
         setActiveId(null);
         setMessages([]);
-        setSelectedMessageId(null);
       }
     } catch (e) {
       toast(
@@ -179,6 +244,20 @@ export function AskView() {
         "error",
       );
     }
+  };
+
+  // ── sources ──────────────────────────────────────────────────────────────
+
+  const openSource = (s: ApiSource) => {
+    if (s.document_id === "demo") {
+      toast("Demo mode", "Source files open once your workspace is live.");
+      return;
+    }
+    if (s.source_type === "url" && s.source_url) {
+      window.open(s.source_url, "_blank", "noreferrer");
+      return;
+    }
+    setPdf({ id: s.document_id, page: s.page, title: s.title });
   };
 
   // ── asking ───────────────────────────────────────────────────────────────
@@ -206,15 +285,9 @@ export function AskView() {
     setLiveText("");
     setLiveSources(null);
     setLiveTrace([]);
-    setActiveCitation(null);
-    setPanelTab("trace"); // watch the agent think; evidence lands after
 
-    let sawSources = false; // action-only answers have none — keep the trace up
     await streamAsk(token, convoId, question, {
-      onSources: (sources) => {
-        sawSources = sawSources || sources.length > 0;
-        setLiveSources(sources);
-      },
+      onSources: (sources) => setLiveSources(sources),
       onTrace: (step) => setLiveTrace((prev) => [...prev, step]),
       onReset: () => setLiveText(""), // reflection rejected the draft
       onDelta: (text) => setLiveText((prev) => prev + text),
@@ -223,7 +296,7 @@ export function AskView() {
         setPendingQuestion(null);
         setLiveText("");
         setLiveSources(null);
-        setPanelTab(sawSources ? "sources" : "trace");
+        setLiveTrace([]);
         void openConversation(convoId);
         void loadConversations();
       },
@@ -242,105 +315,109 @@ export function AskView() {
   // Auto-scroll as tokens arrive.
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-  }, [messages, liveText, pendingQuestion]);
-
-  // ── sources panel data ──────────────────────────────────────────────────
-
-  const selectedMessage =
-    messages.find((m) => m.id === selectedMessageId) ?? null;
-  const panelSources: ApiSource[] | null = streaming
-    ? liveSources
-    : (selectedMessage?.sources ?? null);
-  const panelTrace: ApiTraceStep[] = streaming
-    ? liveTrace
-    : (selectedMessage?.trace ?? []);
-
-  const onCitation = (messageId: string) => (n: number) => {
-    setSelectedMessageId(messageId);
-    setActiveCitation(n);
-  };
+  }, [messages, liveText, liveTrace, pendingQuestion]);
 
   const activeConvo = conversations?.find((c) => c.id === activeId);
 
   // ── render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="grid h-full min-h-0 grid-cols-1 gap-4 md:grid-cols-[15rem_minmax(0,1fr)] xl:grid-cols-[15rem_minmax(0,1fr)_19rem]">
-      {/* ── Conversations pane ─────────────────────────────────────────── */}
-      <aside className="hidden min-h-0 flex-col rounded-2xl border border-border bg-surface shadow-xs md:flex">
-        <div className="flex items-center justify-between border-b border-border px-3.5 py-3">
-          <p className="text-xs font-semibold tracking-wide text-subtle uppercase">
-            Conversations
-          </p>
-          <button
-            type="button"
-            onClick={() => void newConversation()}
-            aria-label="New conversation"
-            className="rounded-md p-1 text-subtle transition hover:bg-surface-raised hover:text-primary"
-          >
-            <Plus className="h-4 w-4" />
-          </button>
-        </div>
-        <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto p-1.5">
-          {demo ? (
-            <div className="group flex items-center rounded-lg bg-surface-raised px-2.5 py-2">
-              <MessageSquare className="mr-2 h-3.5 w-3.5 shrink-0 text-subtle" />
-              <span className="truncate text-xs font-medium text-primary">
-                What changed in the refund policy?
-              </span>
-            </div>
-          ) : conversations === null ? (
-            [0, 1, 2].map((i) => <Skeleton key={i} className="h-8 rounded-lg" />)
-          ) : conversations.length === 0 ? (
-            <p className="px-2.5 py-6 text-center text-xs leading-5 text-subtle">
-              No conversations yet.
-              <br />
-              Ask your first question →
+    <div className="flex h-full min-h-0 gap-4">
+      {/* ── Conversation history (collapsible, ChatGPT-style) ──────────── */}
+      {historyOpen && (
+        <aside className="hidden w-64 min-h-0 shrink-0 flex-col rounded-2xl border border-border bg-surface shadow-xs md:flex">
+          <div className="flex items-center justify-between border-b border-border px-3.5 py-3">
+            <p className="text-xs font-semibold tracking-wide text-subtle uppercase">
+              Conversations
             </p>
-          ) : (
-            conversations.map((c) => (
-              <div
-                key={c.id}
-                className={cn(
-                  "group flex cursor-pointer items-center rounded-lg px-2.5 py-2 transition",
-                  c.id === activeId
-                    ? "bg-surface-raised"
-                    : "hover:bg-surface-raised/60",
-                )}
-                onClick={() => void openConversation(c.id)}
-              >
+            <button
+              type="button"
+              onClick={() => void newConversation()}
+              aria-label="New conversation"
+              className="rounded-md p-1 text-subtle transition hover:bg-surface-raised hover:text-primary"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto p-1.5">
+            {demo ? (
+              <div className="group flex items-center rounded-lg bg-surface-raised px-2.5 py-2">
                 <MessageSquare className="mr-2 h-3.5 w-3.5 shrink-0 text-subtle" />
-                <span
-                  className={cn(
-                    "min-w-0 flex-1 truncate text-xs",
-                    c.id === activeId
-                      ? "font-medium text-primary"
-                      : "text-muted",
-                  )}
-                >
-                  {c.title}
+                <span className="truncate text-xs font-medium text-primary">
+                  What changed in the refund policy?
                 </span>
-                <button
-                  type="button"
-                  aria-label={`Delete ${c.title}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    void removeConversation(c.id);
-                  }}
-                  className="ml-1 rounded p-0.5 text-subtle opacity-0 transition group-hover:opacity-100 hover:text-danger"
-                >
-                  <Trash2 className="h-3 w-3" />
-                </button>
               </div>
-            ))
-          )}
-        </div>
-      </aside>
+            ) : conversations === null ? (
+              [0, 1, 2].map((i) => <Skeleton key={i} className="h-8 rounded-lg" />)
+            ) : conversations.length === 0 ? (
+              <p className="px-2.5 py-6 text-center text-xs leading-5 text-subtle">
+                No conversations yet.
+                <br />
+                Ask your first question →
+              </p>
+            ) : (
+              conversations.map((c) => (
+                <div
+                  key={c.id}
+                  className={cn(
+                    "group flex cursor-pointer items-center rounded-lg px-2.5 py-2 transition",
+                    c.id === activeId
+                      ? "bg-surface-raised"
+                      : "hover:bg-surface-raised/60",
+                  )}
+                  onClick={() => void openConversation(c.id)}
+                >
+                  <MessageSquare className="mr-2 h-3.5 w-3.5 shrink-0 text-subtle" />
+                  <span
+                    className={cn(
+                      "min-w-0 flex-1 truncate text-xs",
+                      c.id === activeId
+                        ? "font-medium text-primary"
+                        : "text-muted",
+                    )}
+                  >
+                    {c.title}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label={`Delete ${c.title}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void removeConversation(c.id);
+                    }}
+                    className="ml-1 rounded p-0.5 text-subtle opacity-0 transition group-hover:opacity-100 hover:text-danger"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </aside>
+      )}
 
-      {/* ── Chat pane ──────────────────────────────────────────────────── */}
-      <section className="flex min-h-0 flex-col rounded-2xl border border-border bg-surface shadow-xs">
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <div className="flex min-w-0 items-center gap-2.5">
+      {/* ── Chat ───────────────────────────────────────────────────────── */}
+      <section className="flex min-h-0 min-w-0 flex-1 flex-col rounded-2xl border border-border bg-surface shadow-xs">
+        <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2.5 sm:px-4">
+          <div className="flex min-w-0 items-center gap-2">
+            <Tooltip label={historyOpen ? "Hide history" : "Show history"}>
+              <button
+                type="button"
+                onClick={() => setHistoryOpen((o) => !o)}
+                aria-label={
+                  historyOpen ? "Hide conversation history" : "Show conversation history"
+                }
+                aria-expanded={historyOpen}
+                className={cn(
+                  "hidden rounded-lg p-2 transition md:block",
+                  historyOpen
+                    ? "bg-surface-raised text-primary"
+                    : "text-muted hover:bg-surface-raised hover:text-primary",
+                )}
+              >
+                <PanelLeft className="h-4 w-4" />
+              </button>
+            </Tooltip>
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary text-on-primary">
               <Sparkles className="h-3.5 w-3.5" />
             </span>
@@ -349,14 +426,23 @@ export function AskView() {
                 ? "Ask BrainStack"
                 : (activeConvo?.title ?? "Ask BrainStack")}
             </p>
+            {demo && <Badge variant="neutral">Sample data</Badge>}
           </div>
-          {demo && <Badge variant="neutral">Sample data</Badge>}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void newConversation()}
+            className="shrink-0"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">New chat</span>
+          </Button>
         </div>
 
         {/* messages */}
         <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-5">
           {loadingMessages ? (
-            <div className="space-y-4">
+            <div className="mx-auto max-w-3xl space-y-4">
               <Skeleton className="ml-auto h-9 w-2/5 rounded-xl" />
               <Skeleton className="h-24 w-4/5 rounded-xl" />
             </div>
@@ -370,7 +456,7 @@ export function AskView() {
               </p>
               <p className="mt-1.5 max-w-sm text-xs leading-5 text-muted">
                 Answers are built only from your indexed documents, with
-                citations you can open at the exact page.
+                citations — hover one for the passage, click to open it.
               </p>
               {!demo && (
                 <ButtonLink
@@ -385,7 +471,7 @@ export function AskView() {
               )}
             </div>
           ) : (
-            <div className="mx-auto max-w-2xl space-y-5">
+            <div className="mx-auto max-w-3xl space-y-5">
               {messages.map((m) =>
                 m.role === "user" ? (
                   <div key={m.id} className="flex justify-end">
@@ -395,21 +481,18 @@ export function AskView() {
                   </div>
                 ) : (
                   <div key={m.id} className="flex">
-                    <div
-                      className={cn(
-                        "max-w-[92%] rounded-2xl rounded-bl-md border px-4 py-3 transition",
-                        m.id === selectedMessageId
-                          ? "border-accent-200 bg-accent-soft/40"
-                          : "border-border bg-canvas",
+                    <div className="max-w-[92%] rounded-2xl rounded-bl-md border border-border bg-canvas px-4 py-3">
+                      {m.trace && m.trace.length > 0 && (
+                        <InlineTrace steps={m.trace} />
                       )}
-                    >
                       <MessageContent
                         content={m.content}
-                        onCitation={onCitation(m.id)}
-                        activeCitation={
-                          m.id === selectedMessageId ? activeCitation : null
-                        }
+                        sources={m.sources}
+                        onOpenSource={openSource}
                       />
+                      {m.sources && m.sources.length > 0 && (
+                        <SourcesRow sources={m.sources} onOpen={openSource} />
+                      )}
                     </div>
                   </div>
                 ),
@@ -424,22 +507,23 @@ export function AskView() {
               )}
               {streaming && (
                 <div className="flex">
-                  <div className="max-w-[92%] rounded-2xl rounded-bl-md border border-border bg-canvas px-4 py-3">
-                    {liveText ? (
-                      <>
-                        <MessageContent content={liveText} />
+                  <div className="w-full max-w-[92%] rounded-2xl rounded-bl-md border border-border bg-canvas px-4 py-3">
+                    {/* The agent's thinking, live, right in the chat. */}
+                    <TraceSteps
+                      steps={liveTrace}
+                      live
+                      drafting={liveText.length > 0}
+                      className="mb-1"
+                    />
+                    {liveText && (
+                      <div className="mt-2 border-t border-border pt-2.5">
+                        <MessageContent
+                          content={liveText}
+                          sources={liveSources}
+                          onOpenSource={openSource}
+                        />
                         <span className="mt-1 inline-block h-3.5 w-0.5 animate-pulse bg-accent align-middle" />
-                      </>
-                    ) : (
-                      <span className="flex items-center gap-1.5 py-0.5">
-                        {[0, 150, 300].map((delay) => (
-                          <span
-                            key={delay}
-                            className="h-1.5 w-1.5 animate-bounce rounded-full bg-border-strong"
-                            style={{ animationDelay: `${delay}ms` }}
-                          />
-                        ))}
-                      </span>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -450,7 +534,7 @@ export function AskView() {
 
         {/* composer */}
         <div className="border-t border-border p-3">
-          <div className="mx-auto flex max-w-2xl items-end gap-2 rounded-xl border border-border-strong bg-canvas p-2 focus-within:border-accent">
+          <div className="mx-auto flex max-w-3xl items-end gap-2 rounded-xl border border-border-strong bg-canvas p-2 focus-within:border-accent">
             <textarea
               ref={inputRef}
               rows={1}
@@ -485,120 +569,12 @@ export function AskView() {
               <ArrowUp className="h-4 w-4" />
             </Button>
           </div>
-          <p className="mx-auto mt-1.5 max-w-2xl px-1 text-[11px] text-subtle">
+          <p className="mx-auto mt-1.5 max-w-3xl px-1 text-[11px] text-subtle">
             Answers come only from indexed sources — when it isn&apos;t there,
             BrainStack says so.
           </p>
         </div>
       </section>
-
-      {/* ── Sources pane ───────────────────────────────────────────────── */}
-      <aside className="hidden min-h-0 flex-col rounded-2xl border border-border bg-surface shadow-xs xl:flex">
-        <div className="flex items-center gap-1 border-b border-border px-2.5 py-2">
-          {(["sources", "trace"] as const).map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => setPanelTab(tab)}
-              className={cn(
-                "rounded-lg px-2.5 py-1 text-xs font-semibold tracking-wide uppercase transition",
-                panelTab === tab
-                  ? "bg-surface-raised text-primary"
-                  : "text-subtle hover:text-primary",
-              )}
-            >
-              {tab === "sources" ? "Sources" : "Agent trace"}
-            </button>
-          ))}
-          {streaming && panelTab === "trace" && (
-            <span className="ml-auto mr-1 h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />
-          )}
-        </div>
-        {panelTab === "trace" ? (
-          <div className="min-h-0 flex-1 overflow-y-auto p-3">
-            <TraceSteps
-              steps={panelTrace}
-              live={streaming}
-              drafting={streaming && liveText.length > 0}
-            />
-          </div>
-        ) : (
-        <div className="min-h-0 flex-1 space-y-2.5 overflow-y-auto p-3">
-          {!panelSources || panelSources.length === 0 ? (
-            <p className="px-2 py-8 text-center text-xs leading-5 text-subtle">
-              {streaming
-                ? "Retrieving passages…"
-                : "Ask a question, or click a citation, and the passages behind the answer appear here."}
-            </p>
-          ) : (
-            panelSources.map((s) => (
-              <div
-                key={s.n}
-                className={cn(
-                  "rounded-xl border p-3 transition",
-                  activeCitation === s.n
-                    ? "border-accent bg-accent-soft/50"
-                    : "border-border bg-canvas",
-                )}
-              >
-                <div className="flex items-center gap-2">
-                  <span
-                    className={cn(
-                      "flex h-4.5 min-w-4.5 items-center justify-center rounded-md px-1 font-mono text-[10px] font-semibold",
-                      activeCitation === s.n
-                        ? "bg-accent text-on-accent"
-                        : "bg-accent-soft text-accent-700",
-                    )}
-                  >
-                    {s.n}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-xs font-medium text-primary">
-                    {s.title}
-                  </span>
-                  {s.document_id === "demo" ? (
-                    <span className="text-[10px] text-subtle">p.{s.page}</span>
-                  ) : s.source_type === "url" && s.source_url ? (
-                    // Web sources have no stored file — open the original page.
-                    <a
-                      href={s.source_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium text-accent transition hover:bg-accent-soft"
-                    >
-                      Open page
-                      <ExternalLink className="h-2.5 w-2.5" />
-                    </a>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setPdf({ id: s.document_id, page: s.page, title: s.title })
-                      }
-                      className="flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium text-accent transition hover:bg-accent-soft"
-                    >
-                      p.{s.page}
-                      <ExternalLink className="h-2.5 w-2.5" />
-                    </button>
-                  )}
-                </div>
-                <p className="mt-2 line-clamp-5 text-xs leading-5 text-muted">
-                  {s.text}
-                </p>
-                <p className="mt-1.5 font-mono text-[10px] text-subtle">
-                  relevance {s.score.toFixed(2)}
-                </p>
-              </div>
-            ))
-          )}
-        </div>
-        )}
-        {panelTab === "sources" && panelSources && panelSources.length > 0 && (
-          <p className="border-t border-border px-3.5 py-2.5 text-[11px] leading-4 text-subtle">
-            <Globe className="mr-1 inline h-3 w-3 align-[-1px]" />
-            Retrieved from this workspace&apos;s private index only.
-          </p>
-        )}
-      </aside>
 
       <PdfViewer
         documentId={pdf?.id ?? null}

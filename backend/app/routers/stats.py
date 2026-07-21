@@ -100,6 +100,17 @@ def dashboard(
             sum(r.cost_usd or 0.0 for r in _recent_traces(db, t, days=30)), 4
         ),
         "tool_usage": _tool_usage(ok),
+        # Latest activity, newest first — tenant-scoped so safe for all roles.
+        "recent_questions": [
+            {
+                "question": r.question[:160],
+                "status": r.status,
+                "latency_ms": r.latency_ms,
+                "tool_kinds": [k for k in (r.tool_kinds or "").split(",") if k],
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+            }
+            for r in traces[:6]
+        ],
     }
 
 

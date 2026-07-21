@@ -22,13 +22,33 @@ from app.services import mcp_client
 router = APIRouter(tags=["company"])
 
 
+def _wake_company_service() -> None:
+    """Block until the free-tier company service answers /health (or 60s).
+    Render spins the service up on first request after a nap — an explicit
+    refresh is exactly when it's worth riding out that cold start."""
+    settings = get_settings()
+    base = settings.COMPANY_MCP_URL.rstrip("/").removesuffix("/mcp")
+    try:
+        httpx.get(f"{base}/health", timeout=60)
+    except httpx.HTTPError:
+        pass  # discovery below will report the honest state
+
+
 @router.get("/connections")
-def connections(current: CurrentUser = Depends(get_current_user)) -> dict:
-    """Connection status as THIS session sees it — role decides capability."""
+def connections(
+    refresh: bool = False,
+    current: CurrentUser = Depends(get_current_user),
+) -> dict:
+    """Connection status as THIS session sees it — role decides capability.
+    `refresh=true` (the UI's Refresh button) busts the discovery cache and
+    wakes the napping service first instead of re-serving a cached failure."""
     configured = mcp_client.is_configured()
     capable = current.role in ("manager", "admin")
     tools: list[dict] = []
     if configured and capable:
+        if refresh:
+            mcp_client.reset_cache()
+            _wake_company_service()
         tools = mcp_client.discover_tools(str(current.tenant_id), current.role)
     return {
         "server": "Company Systems",

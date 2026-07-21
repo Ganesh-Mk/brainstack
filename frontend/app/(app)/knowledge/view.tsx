@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
+  ExternalLink,
+  FileText,
   Library,
   Plus,
   RefreshCw,
@@ -12,6 +14,7 @@ import {
 } from "lucide-react";
 import { api, ApiError, type ApiDocument, isProcessing } from "@/lib/api";
 import { timeAgo } from "@/lib/time";
+import { PdfViewer } from "@/components/ask/PdfViewer";
 import { docMeta, SourceIcon, StatusCell } from "@/components/knowledge/bits";
 import { EmptyState } from "@/components/patterns/EmptyState";
 import { PageHeader } from "@/components/patterns/PageHeader";
@@ -36,6 +39,7 @@ export function LibraryView() {
   const [query, setQuery] = useState("");
   const [toDelete, setToDelete] = useState<ApiDocument | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [pdf, setPdf] = useState<ApiDocument | null>(null);
 
   const filtered = useMemo(() => {
     if (!docs) return [];
@@ -75,7 +79,7 @@ export function LibraryView() {
   const readyCount = docs?.filter((d) => d.status === "ready").length ?? 0;
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="max-w-5xl space-y-6">
       <PageHeader
         icon={Library}
         title="Library"
@@ -174,6 +178,7 @@ export function LibraryView() {
             <THead>
               <TR>
                 <TH>Source</TH>
+                <TH className="hidden md:table-cell">Origin</TH>
                 <TH>Status</TH>
                 <TH className="hidden sm:table-cell">Added</TH>
                 {role === "admin" && <TH className="w-10" aria-label="Actions" />}
@@ -195,6 +200,42 @@ export function LibraryView() {
                         </p>
                       </div>
                     </div>
+                  </TD>
+                  <TD className="hidden md:table-cell">
+                    {/* Where this knowledge actually came from — the live
+                        page for web sources, the stored file for PDFs. */}
+                    {doc.source_type === "url" && doc.source_url ? (
+                      <a
+                        href={doc.source_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        title={doc.source_url}
+                        className="inline-flex max-w-56 items-center gap-1.5 rounded-md px-1.5 py-1 text-xs font-medium text-accent transition hover:bg-accent-soft"
+                      >
+                        <span className="min-w-0 truncate">
+                          {(() => {
+                            try {
+                              return new URL(doc.source_url).hostname;
+                            } catch {
+                              return doc.source_url;
+                            }
+                          })()}
+                        </span>
+                        <ExternalLink className="h-3 w-3 shrink-0" />
+                      </a>
+                    ) : doc.source_type === "pdf" ? (
+                      <button
+                        type="button"
+                        onClick={() => setPdf(doc)}
+                        disabled={demo}
+                        className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs font-medium text-accent transition hover:bg-accent-soft disabled:opacity-60"
+                      >
+                        <FileText className="h-3 w-3 shrink-0" />
+                        View PDF
+                      </button>
+                    ) : (
+                      <span className="text-xs text-subtle">—</span>
+                    )}
                   </TD>
                   <TD>
                     <StatusCell doc={doc} />
@@ -225,7 +266,7 @@ export function LibraryView() {
         <p className="text-xs text-subtle">
           Sources are isolated to this workspace.{" "}
           <Link
-            href="/knowledge/ingestion"
+            href="/knowledge/add"
             className="font-medium text-accent hover:text-accent-hover"
           >
             Watch the pipeline →
@@ -265,6 +306,13 @@ export function LibraryView() {
           deleted everywhere, immediately. Answers will no longer draw on it.
         </p>
       </Modal>
+
+      <PdfViewer
+        documentId={pdf?.id ?? null}
+        page={1}
+        title={pdf?.title ?? ""}
+        onClose={() => setPdf(null)}
+      />
     </div>
   );
 }

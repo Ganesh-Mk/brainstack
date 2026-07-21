@@ -34,13 +34,13 @@ const QUICK_ACTIONS = [
     href: "/knowledge/add",
     icon: Upload,
     title: "Add sources",
-    description: "Upload PDFs, docs, or paste URLs.",
+    description: "Upload PDFs or paste URLs — and watch them index live.",
   },
   {
-    href: "/knowledge/ingestion",
+    href: "/agent/trace",
     icon: Workflow,
-    title: "Watch the pipeline",
-    description: "See documents index in real time.",
+    title: "See the agent think",
+    description: "Every answer's plan, tool calls and timing, step by step.",
   },
 ];
 
@@ -57,7 +57,7 @@ export function DashboardView() {
 
   if (!mounted || loading)
     return (
-      <div className="mx-auto w-full max-w-6xl space-y-4">
+      <div className="w-full max-w-6xl space-y-4">
         <Skeleton className="h-10 w-64" />
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {[0, 1, 2, 3].map((i) => (
@@ -82,7 +82,7 @@ export function DashboardView() {
   ];
 
   return (
-    <div className="bs-fade-up mx-auto w-full max-w-6xl space-y-6">
+    <div className="bs-fade-up w-full max-w-6xl space-y-6">
       <PageHeader
         icon={LayoutDashboard}
         title="Dashboard"
@@ -166,6 +166,51 @@ export function DashboardView() {
           </Link>
         </Card>
       </div>
+
+      {(s.recent_questions?.length ?? 0) > 0 && (
+        <Card>
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold tracking-wide text-subtle uppercase">
+              Recent questions
+            </p>
+            <Link
+              href="/ask"
+              className="text-xs font-medium text-accent hover:underline"
+            >
+              Ask something →
+            </Link>
+          </div>
+          <ul className="mt-4 divide-y divide-border">
+            {s.recent_questions.map((q, i) => (
+              <li
+                key={i}
+                className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0"
+              >
+                <span
+                  className={
+                    q.status === "ok"
+                      ? "h-1.5 w-1.5 shrink-0 rounded-full bg-success"
+                      : "h-1.5 w-1.5 shrink-0 rounded-full bg-danger"
+                  }
+                />
+                <p className="min-w-0 flex-1 truncate text-sm text-primary">
+                  {q.question}
+                </p>
+                {q.tool_kinds
+                  .filter((k) => k !== "planning" && k !== "drafting")
+                  .map((k) => (
+                    <Badge key={k} variant="neutral" className="hidden sm:inline-flex">
+                      {k}
+                    </Badge>
+                  ))}
+                <span className="shrink-0 font-mono text-[11px] text-subtle">
+                  {fmtMs(q.latency_ms)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-3">
         {QUICK_ACTIONS.map((action) => (

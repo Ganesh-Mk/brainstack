@@ -24,7 +24,7 @@ export function WorkforceView() {
 
   if (!mounted)
     return (
-      <div className="mx-auto max-w-4xl space-y-4">
+      <div className="max-w-4xl space-y-4">
         <Skeleton className="h-10 w-64" />
         <Skeleton className="h-64 w-full rounded-2xl" />
       </div>
@@ -34,7 +34,7 @@ export function WorkforceView() {
   const maxActive = Math.max(1, ...rows.map((r) => r.open + r.in_progress));
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="max-w-4xl space-y-6">
       <PageHeader
         icon={ChartColumn}
         title="Workforce Analytics"

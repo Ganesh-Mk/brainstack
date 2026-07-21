@@ -25,6 +25,8 @@ from app.schemas.auth import (
     SignupRequest,
     TenantOut,
     TenantUpdateRequest,
+    WorkspaceCreateRequest,
+    WorkspaceOut,
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -54,7 +56,10 @@ def signup(body: SignupRequest, db: Session = Depends(get_db)) -> AuthResponse:
     if db.scalar(select(User.id).where(User.email == email)) is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="An account with this email already exists",
+            detail=(
+                "An account with this email already exists — sign in, then "
+                "create a new workspace from the workspace menu"
+            ),
         )
     tenant = Tenant(name=body.company_name, slug=_slugify(body.company_name, db))
     db.add(tenant)
@@ -74,9 +79,19 @@ def signup(body: SignupRequest, db: Session = Depends(get_db)) -> AuthResponse:
 
 @router.post("/login", response_model=AuthResponse)
 def login(body: LoginRequest, db: Session = Depends(get_db)) -> AuthResponse:
-    user = db.scalar(select(User).where(User.email == body.email.lower()))
+    # The email may exist in several workspaces; sign into the most recent
+    # row whose password matches, then switch workspaces from the app.
+    candidates = db.scalars(
+        select(User)
+        .where(User.email == body.email.lower())
+        .order_by(User.created_at.desc())
+    )
+    user = next(
+        (u for u in candidates if verify_password(body.password, u.password_hash)),
+        None,
+    )
     # Same error for unknown email and wrong password — no account probing.
-    if user is None or not verify_password(body.password, user.password_hash):
+    if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid email or password",
@@ -96,10 +111,17 @@ def create_invite(
     db: Session = Depends(get_db),
 ) -> InviteOut:
     email = body.email.lower()
-    if db.scalar(select(User.id).where(User.email == email)) is not None:
+    if (
+        db.scalar(
+            select(User.id).where(
+                User.email == email, User.tenant_id == current.tenant_id
+            )
+        )
+        is not None
+    ):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="A user with this email already exists",
+            detail="A user with this email is already in this workspace",
         )
     invite = Invite(
         tenant_id=current.tenant_id,
@@ -145,10 +167,17 @@ def accept_invite(
     token: str, body: InviteAcceptRequest, db: Session = Depends(get_db)
 ) -> AuthResponse:
     invite = _valid_invite(token, db)
-    if db.scalar(select(User.id).where(User.email == invite.email)) is not None:
+    if (
+        db.scalar(
+            select(User.id).where(
+                User.email == invite.email, User.tenant_id == invite.tenant_id
+            )
+        )
+        is not None
+    ):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="A user with this email already exists",
+            detail="A user with this email is already in this workspace",
         )
     user = User(
         tenant_id=invite.tenant_id,
@@ -220,6 +249,69 @@ def remove_member(
         )
     db.delete(user)
     db.commit()
+
+
+# ── Workspaces (multi-tenancy for one person) ───────────────────────────────
+#
+# A "workspace" is a tenant where a user row with MY email exists. Listing and
+# switching key off the authenticated token's email — never off anything the
+# client sends. Switching mints a fresh token via the normal _auth_response
+# path, so get_current_user() stays the only source of tenant/role everywhere.
+# (The platform has no email verification anywhere — email == identity is the
+# existing trust model; these endpoints follow it.)
+
+
+@router.get("/workspaces", response_model=list[WorkspaceOut])
+def list_workspaces(
+    current: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list[WorkspaceOut]:
+    rows = db.scalars(
+        select(User)
+        .where(User.email == current.user.email)
+        .order_by(User.created_at.asc())
+    )
+    return [WorkspaceOut(tenant=u.tenant, role=u.role) for u in rows]
+
+
+@router.post("/workspaces", response_model=AuthResponse, status_code=201)
+def create_workspace(
+    body: WorkspaceCreateRequest,
+    current: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> AuthResponse:
+    """New tenant + me as its admin (same email and password). Returns a
+    token already scoped to the new workspace."""
+    tenant = Tenant(name=body.name.strip(), slug=_slugify(body.name, db))
+    db.add(tenant)
+    db.flush()
+    user = User(
+        tenant_id=tenant.id,
+        email=current.user.email,
+        name=current.user.name,
+        password_hash=current.user.password_hash,
+        role="admin",  # first user of a tenant is its admin
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return _auth_response(user)
+
+
+@router.post("/workspaces/{tenant_id}/switch", response_model=AuthResponse)
+def switch_workspace(
+    tenant_id: uuid.UUID,
+    current: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> AuthResponse:
+    user = db.scalar(
+        select(User).where(
+            User.email == current.user.email, User.tenant_id == tenant_id
+        )
+    )
+    if user is None:
+        raise HTTPException(status_code=404, detail="Workspace not found")
+    return _auth_response(user)
 
 
 @router.patch("/tenant", response_model=TenantOut)

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import {
   Cable,
   ChartColumn,
@@ -30,18 +30,44 @@ const TOOL_ICONS: Record<string, LucideIcon> = {
 
 export function ConnectionsView() {
   const mounted = useMounted();
-  const fetcher = useCallback((token: string) => api.connections(token), []);
+  // A "hard" refresh (?refresh=true) busts the backend's discovery cache and
+  // wakes the napping free-tier service before retrying — that's what the
+  // Refresh button and the auto-retry below use.
+  const hard = useRef(false);
+  const fetcher = useCallback(
+    (token: string) => api.connections(token, hard.current),
+    [],
+  );
   const { data, error, loading, demo, role, allowed, refresh, refreshing } =
     useCompanyResource<ApiConnections>(fetcher, DEMO_CONNECTIONS);
 
-  if (!mounted) return <ConnectionsSkeleton />;
+  const refreshHard = useCallback(async () => {
+    hard.current = true;
+    try {
+      await refresh();
+    } finally {
+      hard.current = false;
+    }
+  }, [refresh]);
 
   // The employee view IS the feature: this session has no connection.
   const conn = allowed ? data : null;
   const connected = Boolean(conn?.connected);
 
+  // If discovery came back empty (service napping), retry once, hard —
+  // the wake ping usually brings it up within a minute.
+  const retried = useRef(false);
+  useEffect(() => {
+    if (!conn || connected || !conn.configured || retried.current) return;
+    retried.current = true;
+    const t = setTimeout(() => void refreshHard(), 1500);
+    return () => clearTimeout(t);
+  }, [conn, connected, refreshHard]);
+
+  if (!mounted) return <ConnectionsSkeleton />;
+
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="max-w-4xl space-y-6">
       <PageHeader
         icon={Cable}
         title="Connections"
@@ -49,11 +75,11 @@ export function ConnectionsView() {
         badge={demo ? <Badge variant="neutral">Sample data</Badge> : undefined}
         actions={
           allowed && !demo ? (
-            <Button variant="outline" size="sm" onClick={() => void refresh()}>
+            <Button variant="outline" size="sm" onClick={() => void refreshHard()}>
               <RefreshCw
                 className={refreshing ? "h-4 w-4 animate-spin" : "h-4 w-4"}
               />
-              Refresh
+              {refreshing ? "Connecting…" : "Refresh"}
             </Button>
           ) : undefined
         }
@@ -122,11 +148,16 @@ export function ConnectionsView() {
                     })}
                   </ul>
                 ) : (
-                  <p className="mt-2.5 rounded-xl border border-dashed border-border-strong bg-canvas p-4 text-xs leading-5 text-muted">
+                  <p className="mt-2.5 flex items-center gap-2 rounded-xl border border-dashed border-border-strong bg-canvas p-4 text-xs leading-5 text-muted">
+                    {refreshing && (
+                      <RefreshCw className="h-3.5 w-3.5 shrink-0 animate-spin text-accent" />
+                    )}
                     {error ??
                       (conn && !conn.configured
                         ? "No Company MCP Server is configured for this deployment."
-                        : "The company system didn't answer discovery — it may be waking up. Try refresh in a few seconds.")}
+                        : refreshing
+                          ? "Waking the company system and retrying discovery — free-tier services nap after idle. This can take up to a minute."
+                          : "The company system didn't answer discovery — it naps when idle. Hit Refresh to wake it and reconnect.")}
                   </p>
                 )}
               </>
@@ -153,7 +184,7 @@ export function ConnectionsView() {
 
 function ConnectionsSkeleton() {
   return (
-    <div className="mx-auto max-w-4xl space-y-4">
+    <div className="max-w-4xl space-y-4">
       <Skeleton className="h-10 w-64" />
       <Skeleton className="h-48 w-full rounded-2xl" />
       <Skeleton className="h-20 w-full rounded-2xl" />

@@ -70,6 +70,22 @@ export const DEMO_DASHBOARD: ApiDashboardStats = {
   avg_latency_ms: 5400,
   cost_usd_30d: 1.84,
   tool_usage: { knowledge: 61, web: 14, action: 6, reflection: 3 },
+  recent_questions: [
+    {
+      question: "What is our refund policy?",
+      status: "ok",
+      latency_ms: 5200,
+      tool_kinds: ["planning", "knowledge", "drafting"],
+      created_at: new Date(Date.now() - 3600e3).toISOString(),
+    },
+    {
+      question: "Compare our refund policy with the industry",
+      status: "ok",
+      latency_ms: 11800,
+      tool_kinds: ["planning", "knowledge", "web", "drafting"],
+      created_at: new Date(Date.now() - 7200e3).toISOString(),
+    },
+  ],
 };
 
 export const DEMO_ANALYTICS: ApiAnalytics = {

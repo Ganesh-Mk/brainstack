@@ -85,3 +85,14 @@ class MemberRoleUpdate(BaseModel):
 
 class TenantUpdateRequest(BaseModel):
     name: str = Field(min_length=2, max_length=120)
+
+
+class WorkspaceOut(BaseModel):
+    tenant: TenantOut
+    role: Role
+
+    model_config = {"from_attributes": True}
+
+
+class WorkspaceCreateRequest(BaseModel):
+    name: str = Field(min_length=2, max_length=120)

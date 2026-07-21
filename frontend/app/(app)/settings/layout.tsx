@@ -8,7 +8,7 @@ export default function SettingsLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="bs-fade-up mx-auto w-full max-w-4xl">
+    <div className="bs-fade-up w-full max-w-4xl">
       <PageHeader
         icon={Settings}
         title="Settings"

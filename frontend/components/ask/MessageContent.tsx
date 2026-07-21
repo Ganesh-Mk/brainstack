@@ -1,22 +1,122 @@
 "use client";
 
-import { Fragment, type ReactNode } from "react";
+import {
+  Fragment,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { ExternalLink, FileText, Globe } from "lucide-react";
+import type { ApiSource } from "@/lib/api";
 import { cn } from "@/lib/cn";
 
 /**
  * Purpose-built renderer for assistant answers. The system prompt constrains
  * output to short paragraphs, dash lists, bold and inline code — so this
  * handles exactly that subset, plus the thing no generic markdown library
- * gives us: `[n]` citations rendered as clickable chips.
+ * gives us: `[n]` citations rendered as chips that PREVIEW the source on
+ * hover and open it on click.
  */
 
 const INLINE = /(\*\*[^*]+\*\*|`[^`]+`|\[\d+\](?:\[\d+\])*)/g;
 const CITE = /\[(\d+)\]/g;
 
+/** Hover card for one source — fixed-positioned so the chat scroll area
+ * can't clip it. */
+function SourcePopover({
+  source,
+  anchor,
+}: {
+  source: ApiSource;
+  anchor: DOMRect;
+}) {
+  const width = 320;
+  const margin = 12;
+  const left = Math.min(
+    Math.max(margin, anchor.left + anchor.width / 2 - width / 2),
+    (typeof window !== "undefined" ? window.innerWidth : 1200) - width - margin,
+  );
+  const showBelow = anchor.top < 240;
+  return (
+    <div
+      role="tooltip"
+      className="bs-scale-in fixed z-50 rounded-xl border border-border bg-surface p-3 shadow-lg"
+      style={{
+        width,
+        left,
+        ...(showBelow
+          ? { top: anchor.bottom + 8 }
+          : { bottom: window.innerHeight - anchor.top + 8 }),
+      }}
+    >
+      <div className="flex items-center gap-2">
+        {source.source_type === "url" ? (
+          <Globe className="h-3.5 w-3.5 shrink-0 text-accent" />
+        ) : (
+          <FileText className="h-3.5 w-3.5 shrink-0 text-accent" />
+        )}
+        <span className="min-w-0 flex-1 truncate text-xs font-semibold text-primary">
+          {source.title}
+        </span>
+        <span className="shrink-0 font-mono text-[10px] text-subtle">
+          {source.source_type === "url" ? "web page" : `p.${source.page}`}
+        </span>
+      </div>
+      <p className="mt-2 line-clamp-6 text-xs leading-5 text-muted">
+        {source.text}
+      </p>
+      <p className="mt-2 flex items-center justify-between font-mono text-[10px] text-subtle">
+        <span>relevance {source.score.toFixed(2)}</span>
+        <span className="flex items-center gap-1 text-accent">
+          click to open <ExternalLink className="h-2.5 w-2.5" />
+        </span>
+      </p>
+    </div>
+  );
+}
+
+function CitationChip({
+  n,
+  source,
+  onOpen,
+}: {
+  n: number;
+  source?: ApiSource;
+  onOpen?: (s: ApiSource) => void;
+}) {
+  const ref = useRef<HTMLButtonElement>(null);
+  const [anchor, setAnchor] = useState<DOMRect | null>(null);
+  return (
+    <>
+      <button
+        ref={ref}
+        type="button"
+        onClick={() => source && onOpen?.(source)}
+        onMouseEnter={() =>
+          source && setAnchor(ref.current?.getBoundingClientRect() ?? null)
+        }
+        onMouseLeave={() => setAnchor(null)}
+        onFocus={() =>
+          source && setAnchor(ref.current?.getBoundingClientRect() ?? null)
+        }
+        onBlur={() => setAnchor(null)}
+        aria-label={`Citation ${n}${source ? `: ${source.title}` : ""}`}
+        className={cn(
+          "mx-0.5 inline-flex h-4.5 min-w-4.5 translate-y-[-1px] items-center justify-center rounded-md px-1 align-middle font-mono text-[10px] font-semibold transition",
+          "bg-accent-soft text-accent-700 hover:bg-accent hover:text-on-accent",
+        )}
+      >
+        {n}
+      </button>
+      {anchor && source && <SourcePopover source={source} anchor={anchor} />}
+    </>
+  );
+}
+
 function renderInline(
   text: string,
-  onCitation?: (n: number) => void,
-  activeCitation?: number | null,
+  sources?: ApiSource[] | null,
+  onOpenSource?: (s: ApiSource) => void,
 ): ReactNode[] {
   return text.split(INLINE).map((part, i) => {
     if (!part) return null;
@@ -42,20 +142,12 @@ function renderInline(
       return (
         <Fragment key={i}>
           {nums.map((n, j) => (
-            <button
+            <CitationChip
               key={j}
-              type="button"
-              onClick={() => onCitation?.(n)}
-              aria-label={`Citation ${n}`}
-              className={cn(
-                "mx-0.5 inline-flex h-4.5 min-w-4.5 translate-y-[-1px] items-center justify-center rounded-md px-1 align-middle font-mono text-[10px] font-semibold transition",
-                activeCitation === n
-                  ? "bg-accent text-on-accent"
-                  : "bg-accent-soft text-accent-700 hover:bg-accent-200",
-              )}
-            >
-              {n}
-            </button>
+              n={n}
+              source={sources?.find((s) => s.n === n)}
+              onOpen={onOpenSource}
+            />
           ))}
         </Fragment>
       );
@@ -66,13 +158,14 @@ function renderInline(
 
 export function MessageContent({
   content,
-  onCitation,
-  activeCitation,
+  sources,
+  onOpenSource,
   className,
 }: {
   content: string;
-  onCitation?: (n: number) => void;
-  activeCitation?: number | null;
+  /** The message's sources — powers the hover previews on `[n]` chips. */
+  sources?: ApiSource[] | null;
+  onOpenSource?: (s: ApiSource) => void;
   className?: string;
 }) {
   // Group lines into paragraphs and dash-lists.
@@ -110,8 +203,8 @@ export function MessageContent({
                   <span>
                     {renderInline(
                       line.replace(/^\s*[-*]\s+/, ""),
-                      onCitation,
-                      activeCitation,
+                      sources,
+                      onOpenSource,
                     )}
                   </span>
                 </li>
@@ -121,7 +214,7 @@ export function MessageContent({
         }
         return (
           <p key={i}>
-            {renderInline(block.lines.join(" "), onCitation, activeCitation)}
+            {renderInline(block.lines.join(" "), sources, onOpenSource)}
           </p>
         );
       })}

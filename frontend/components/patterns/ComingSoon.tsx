@@ -63,7 +63,7 @@ export function ComingSoon({
   const unlocksIn = resolved?.unlocksIn;
 
   return (
-    <div className="bs-fade-up mx-auto w-full max-w-5xl">
+    <div className="bs-fade-up w-full max-w-5xl">
       <div className="flex items-start gap-4">
         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-border bg-primary text-on-primary shadow-xs">
           <Icon className="h-5.5 w-5.5" />

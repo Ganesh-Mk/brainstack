@@ -41,14 +41,14 @@ export function TicketsView() {
 
   if (!mounted)
     return (
-      <div className="mx-auto max-w-5xl space-y-4">
+      <div className="max-w-5xl space-y-4">
         <Skeleton className="h-10 w-64" />
         <Skeleton className="h-72 w-full rounded-2xl" />
       </div>
     );
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
+    <div className="max-w-5xl space-y-6">
       <PageHeader
         icon={Ticket}
         title="Tickets"

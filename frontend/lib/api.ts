@@ -30,6 +30,9 @@ export type InviteInfo = {
   role: Role;
 };
 
+/** One workspace this account belongs to (same email, its role there). */
+export type ApiWorkspace = { tenant: ApiTenant; role: Role };
+
 export type ApiMember = {
   id: string;
   email: string;
@@ -134,6 +137,13 @@ export type ApiDashboardStats = {
   avg_latency_ms: number | null;
   cost_usd_30d: number;
   tool_usage: ApiToolUsage;
+  recent_questions: {
+    question: string;
+    status: "ok" | "error";
+    latency_ms: number | null;
+    tool_kinds: string[];
+    created_at: string | null;
+  }[];
 };
 
 export type ApiAnalytics = {
@@ -347,6 +357,24 @@ export const api = {
   renameTenant: (token: string, name: string) =>
     request<ApiTenant>("/auth/tenant", { method: "PATCH", body: { name }, token }),
 
+  // ── Workspaces (one email, many tenants) ─────────────────────────────────
+
+  listWorkspaces: (token: string) =>
+    request<ApiWorkspace[]>("/auth/workspaces", { token }),
+
+  createWorkspace: (token: string, name: string) =>
+    request<AuthResult>("/auth/workspaces", {
+      method: "POST",
+      body: { name },
+      token,
+    }),
+
+  switchWorkspace: (token: string, tenantId: string) =>
+    request<AuthResult>(`/auth/workspaces/${tenantId}/switch`, {
+      method: "POST",
+      token,
+    }),
+
   modelConfig: (token: string) =>
     request<ApiModelConfig>("/stats/config", { token }),
 
@@ -419,8 +447,11 @@ export const api = {
 
   // ── Company systems (MCP) ────────────────────────────────────────────────
 
-  connections: (token: string) =>
-    request<ApiConnections>("/connections", { token }),
+  connections: (token: string, refresh = false) =>
+    request<ApiConnections>(
+      refresh ? "/connections?refresh=true" : "/connections",
+      { token },
+    ),
 
   companyTickets: (token: string) =>
     request<{ tickets: ApiTicket[] }>("/company/tickets", { token }),

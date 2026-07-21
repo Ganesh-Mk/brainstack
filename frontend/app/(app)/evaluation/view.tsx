@@ -42,7 +42,7 @@ export function EvaluationView() {
 
   if (!mounted)
     return (
-      <div className="mx-auto w-full max-w-4xl space-y-4">
+      <div className="w-full max-w-4xl space-y-4">
         <Skeleton className="h-10 w-64" />
         <Skeleton className="h-64 w-full rounded-2xl" />
       </div>
@@ -51,7 +51,7 @@ export function EvaluationView() {
   const runs = data ?? [];
 
   return (
-    <div className="bs-fade-up mx-auto w-full max-w-4xl space-y-6">
+    <div className="bs-fade-up w-full max-w-4xl space-y-6">
       <PageHeader
         icon={ClipboardCheck}
         title="Evaluation"

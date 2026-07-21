@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -11,16 +12,21 @@ import {
   LogOut,
   Menu,
   Palette,
+  Plus,
   Search,
   User,
 } from "lucide-react";
+import { api, ApiError, isBackendConfigured } from "@/lib/api";
 import { Avatar } from "@/components/ui/Avatar";
+import { Button } from "@/components/ui/Button";
 import {
   Dropdown,
   DropdownItem,
   DropdownLabel,
   DropdownSeparator,
 } from "@/components/ui/Dropdown";
+import { Input, Label } from "@/components/ui/Field";
+import { Modal } from "@/components/ui/Modal";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { useMounted } from "@/hooks/useMounted";
 import { cn } from "@/lib/cn";
@@ -42,8 +48,10 @@ export function Topbar() {
   const setPaletteOpen = useUiStore((s) => s.setPaletteOpen);
   const user = useSessionStore((s) => s.user);
   const tenant = useSessionStore((s) => s.tenant);
-  const tenants = useSessionStore((s) => s.tenants);
-  const setTenant = useSessionStore((s) => s.setTenant);
+  const workspaces = useSessionStore((s) => s.workspaces);
+  const loginWith = useSessionStore((s) => s.loginWith);
+  const loadWorkspaces = useSessionStore((s) => s.loadWorkspaces);
+  const token = useSessionStore((s) => s.token);
   const storeRole = useSessionStore((s) => s.role);
   const setRole = useSessionStore((s) => s.setRole);
   const authed = useSessionStore((s) => s.authed);
@@ -51,13 +59,62 @@ export function Topbar() {
   const role: Role = mounted ? storeRole : "admin";
   const tenantName = mounted ? tenant.name : "Lovely";
 
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [busy, setBusy] = useState(false);
+
   const signOut = () => {
     logout();
     router.push("/login");
   };
 
+  // Switching mints a fresh workspace-scoped token, then reloads the app so
+  // EVERY page refetches inside the new workspace — no stale data anywhere.
+  const switchTo = async (tenantId: string) => {
+    if (tenantId === tenant.id) return;
+    if (!isBackendConfigured || !token) {
+      toast("Demo mode", "Workspace switching works on a live account.");
+      return;
+    }
+    try {
+      const result = await api.switchWorkspace(token, tenantId);
+      loginWith(result);
+      window.location.reload();
+    } catch (e) {
+      toast(
+        "Couldn't switch workspace",
+        e instanceof ApiError ? e.message : undefined,
+        "error",
+      );
+    }
+  };
+
+  const createWorkspace = async () => {
+    const name = newName.trim();
+    if (name.length < 2 || busy) return;
+    if (!isBackendConfigured || !token) {
+      toast("Demo mode", "Creating workspaces works on a live account.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const result = await api.createWorkspace(token, name);
+      loginWith(result);
+      window.location.reload();
+    } catch (e) {
+      setBusy(false);
+      toast(
+        "Couldn't create workspace",
+        e instanceof ApiError ? e.message : undefined,
+        "error",
+      );
+    }
+  };
+
   return (
-    <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border bg-canvas/80 px-4 backdrop-blur sm:gap-3 sm:px-6">
+    // relative + z: the workspace/user dropdowns must paint above page
+    // content (cards create their own stacking contexts below).
+    <header className="relative z-40 flex h-14 shrink-0 items-center gap-2 border-b border-border bg-canvas/80 px-4 backdrop-blur sm:gap-3 sm:px-6">
       <button
         type="button"
         onClick={() => setMobileNavOpen(true)}
@@ -67,9 +124,8 @@ export function Topbar() {
         <Menu className="h-5 w-5" />
       </button>
 
-      {/* Workspace indicator. Accounts belong to one workspace; in demo mode
-          the switcher shows sample workspaces to make the tenancy model
-          visible. */}
+      {/* Workspace switcher — real multi-tenancy: every workspace this email
+          belongs to, plus creating a new one. */}
       <Dropdown
         align="left"
         trigger={
@@ -82,23 +138,37 @@ export function Topbar() {
           </span>
         }
       >
-        <DropdownLabel>Workspace</DropdownLabel>
-        {tenants.map((t) => (
+        <DropdownLabel>Workspaces</DropdownLabel>
+        {(mounted && workspaces.length > 0
+          ? workspaces
+          : [{ tenant, role: user.role }]
+        ).map((w) => (
           <DropdownItem
-            key={t.id}
-            active={t.id === tenant.id}
-            onClick={() => setTenant(t.id)}
+            key={w.tenant.id}
+            active={w.tenant.id === tenant.id}
+            onClick={() => void switchTo(w.tenant.id)}
           >
             <Building2 className="h-4 w-4 text-subtle" />
-            {t.name}
-            {t.id === tenant.id && (
-              <Check className="ml-auto h-4 w-4 text-accent" />
+            <span className="min-w-0 flex-1 truncate">{w.tenant.name}</span>
+            <span className="text-[10px] text-subtle">{ROLE_LABELS[w.role]}</span>
+            {w.tenant.id === tenant.id && (
+              <Check className="h-4 w-4 shrink-0 text-accent" />
             )}
           </DropdownItem>
         ))}
         <DropdownSeparator />
+        <DropdownItem
+          onClick={() => {
+            setNewName("");
+            setCreating(true);
+            void loadWorkspaces();
+          }}
+        >
+          <Plus className="h-4 w-4 text-accent" />
+          <span className="font-medium text-accent">New workspace</span>
+        </DropdownItem>
         <p className="px-2.5 py-1.5 text-xs leading-5 text-subtle">
-          Demo workspaces — real multi-tenancy arrives with the backend.
+          Each workspace has its own knowledge, memory and team.
         </p>
       </Dropdown>
 
@@ -202,6 +272,55 @@ export function Topbar() {
           Sign out
         </DropdownItem>
       </Dropdown>
+
+      {/* New-workspace modal */}
+      <Modal
+        open={creating}
+        onClose={() => !busy && setCreating(false)}
+        title="Create a new workspace"
+        footer={
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCreating(false)}
+              disabled={busy}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="accent"
+              size="sm"
+              onClick={() => void createWorkspace()}
+              disabled={busy || newName.trim().length < 2}
+            >
+              <Plus className="h-4 w-4" />
+              {busy ? "Creating…" : "Create workspace"}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-3">
+          <p className="text-sm leading-6 text-muted">
+            A fresh workspace with its own private knowledge, conversations,
+            memory and team — you&apos;ll be its admin. Your account switches
+            to it right away.
+          </p>
+          <div>
+            <Label htmlFor="workspace-name">Workspace name</Label>
+            <Input
+              id="workspace-name"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void createWorkspace();
+              }}
+              placeholder="e.g. Acme Research"
+              autoFocus
+            />
+          </div>
+        </div>
+      </Modal>
     </header>
   );
 }

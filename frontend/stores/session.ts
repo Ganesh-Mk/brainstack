@@ -6,6 +6,7 @@ import {
   api,
   type ApiTenant,
   type ApiUser,
+  type ApiWorkspace,
   isBackendConfigured,
 } from "@/lib/api";
 import type { Role } from "@/lib/nav";
@@ -23,6 +24,10 @@ import type { Role } from "@/lib/nav";
  * in it mirrors the account's real role; the avatar-menu role simulator can
  * still override it locally to preview the RBAC — that's a UI tool, it never
  * changes the account or the token.
+ *
+ * `workspaces` is the real list from /auth/workspaces — every tenant where
+ * this email has a user row. Switching mints a fresh token server-side, then
+ * the app reloads so every page refetches inside the new workspace.
  */
 
 const DEMO_USER: ApiUser = {
@@ -41,14 +46,13 @@ type SessionState = {
   token: string | null;
   user: ApiUser;
   tenant: ApiTenant;
-  tenants: ApiTenant[];
+  workspaces: ApiWorkspace[];
   /** Effective role for RBAC gating (may be a simulated preview). */
   role: Role;
   /** True when this is a real logged-in account (not demo, not simulated). */
   authed: boolean;
 
   setRole: (role: Role) => void;
-  setTenant: (id: string) => void;
 
   loginWith: (result: {
     access_token: string;
@@ -57,6 +61,7 @@ type SessionState = {
   }) => void;
   logout: () => void;
   hydrate: () => Promise<void>;
+  loadWorkspaces: () => Promise<void>;
 };
 
 export const useSessionStore = create<SessionState>()(
@@ -65,24 +70,20 @@ export const useSessionStore = create<SessionState>()(
       token: null,
       user: DEMO_USER,
       tenant: DEMO_TENANT,
-      tenants: isBackendConfigured
-        ? [DEMO_TENANT]
-        : [DEMO_TENANT, { id: "another-company", name: "Another Company", slug: "another-company" }],
+      workspaces: isBackendConfigured
+        ? []
+        : [{ tenant: DEMO_TENANT, role: "admin" as Role }],
       role: "admin",
       authed: false,
 
       setRole: (role) => set({ role }),
-      setTenant: (id) => {
-        const tenant = get().tenants.find((t) => t.id === id);
-        if (tenant) set({ tenant });
-      },
 
       loginWith: ({ access_token, user, tenant }) =>
         set({
           token: access_token,
           user,
           tenant,
-          tenants: [tenant],
+          workspaces: [{ tenant, role: user.role }],
           role: user.role,
           authed: true,
         }),
@@ -92,6 +93,7 @@ export const useSessionStore = create<SessionState>()(
           token: null,
           user: DEMO_USER,
           tenant: DEMO_TENANT,
+          workspaces: [],
           role: "admin",
           authed: false,
         }),
@@ -103,9 +105,20 @@ export const useSessionStore = create<SessionState>()(
         if (!isBackendConfigured || !token) return;
         try {
           const { user, tenant } = await api.me(token);
-          set({ user, tenant, tenants: [tenant], role: user.role, authed: true });
+          set({ user, tenant, role: user.role, authed: true });
+          void get().loadWorkspaces();
         } catch {
           get().logout();
+        }
+      },
+
+      loadWorkspaces: async () => {
+        const token = get().token;
+        if (!isBackendConfigured || !token) return;
+        try {
+          set({ workspaces: await api.listWorkspaces(token) });
+        } catch {
+          /* keep whatever we had — the switcher degrades to current tenant */
         }
       },
     }),

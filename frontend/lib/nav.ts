@@ -30,7 +30,6 @@ import {
   Upload,
   User,
   Users,
-  Workflow,
 } from "lucide-react";
 
 export type Role = "employee" | "manager" | "admin";
@@ -108,17 +107,7 @@ export const APP_NAV: NavItem[] = [
     locked: false,
     roles: ["admin"],
     blurb:
-      "Upload PDFs and docs, paste URLs, or connect data sources to grow the knowledge base.",
-  },
-  {
-    label: "Ingestion",
-    href: "/knowledge/ingestion",
-    icon: Workflow,
-    group: "Knowledge",
-    locked: false,
-    roles: ["admin"],
-    blurb:
-      "Watch documents move through the pipeline live — extract → chunk → embed → index.",
+      "Upload PDFs or paste URLs, then watch them move through the pipeline live — extract → chunk → embed → index.",
   },
 
   // ── Intelligence ───────────────────────────────────────────────────────

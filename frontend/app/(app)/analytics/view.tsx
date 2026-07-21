@@ -24,17 +24,40 @@ export function AnalyticsView() {
 
   if (!mounted)
     return (
-      <div className="mx-auto w-full max-w-6xl space-y-4">
+      <div className="w-full max-w-6xl space-y-4">
         <Skeleton className="h-10 w-64" />
         <Skeleton className="h-72 w-full rounded-2xl" />
       </div>
     );
 
   const a = data ?? DEMO_ANALYTICS;
-  const maxQ = Math.max(1, ...a.per_day.map((d) => d.questions + d.errors));
+
+  // The API returns only days that HAVE traffic — pad to a continuous
+  // window (anchored on the newest data day, so this stays pure) so one
+  // busy day renders as one bar on a real 14-day axis instead of a single
+  // full-width block.
+  const byDate = new Map(a.per_day.map((d) => [d.date, d]));
+  const endMs = a.per_day.length
+    ? new Date(`${a.per_day[a.per_day.length - 1].date}T00:00:00Z`).getTime()
+    : 0;
+  const days = Array.from({ length: a.window_days }, (_, i) => {
+    const date = new Date(endMs - (a.window_days - 1 - i) * 86400e3)
+      .toISOString()
+      .slice(0, 10);
+    return (
+      byDate.get(date) ?? {
+        date,
+        questions: 0,
+        errors: 0,
+        cost_usd: 0,
+        avg_latency_ms: null,
+      }
+    );
+  });
+  const maxQ = Math.max(1, ...days.map((d) => d.questions + d.errors));
 
   return (
-    <div className="bs-fade-up mx-auto w-full max-w-6xl space-y-6">
+    <div className="bs-fade-up w-full max-w-6xl space-y-6">
       <PageHeader
         icon={ChartLine}
         title="Analytics"
@@ -96,30 +119,51 @@ export function AnalyticsView() {
                   No questions in the last {a.window_days} days.
                 </p>
               ) : (
-                <div className="mt-6 flex h-40 items-end gap-1.5">
-                  {a.per_day.map((d) => (
-                    <div
-                      key={d.date}
-                      title={`${d.date}: ${d.questions} questions${d.errors ? `, ${d.errors} errors` : ""} · $${d.cost_usd.toFixed(3)}`}
-                      className="flex flex-1 flex-col justify-end gap-px"
-                      style={{ minWidth: 8 }}
-                    >
-                      {d.errors > 0 && (
+                <div className="mt-6">
+                  <div className="flex h-36 items-end gap-1.5">
+                    {days.map((d) => {
+                      const total = d.questions + d.errors;
+                      return (
                         <div
-                          className="rounded-t-sm bg-danger/60"
-                          style={{ height: `${(d.errors / maxQ) * 160}px` }}
-                        />
-                      )}
-                      <div
-                        className={
-                          d.errors > 0
-                            ? "bg-accent"
-                            : "rounded-t-sm bg-accent"
-                        }
-                        style={{ height: `${(d.questions / maxQ) * 160}px` }}
-                      />
-                    </div>
-                  ))}
+                          key={d.date}
+                          title={`${d.date}: ${d.questions} questions${d.errors ? `, ${d.errors} errors` : ""} · $${d.cost_usd.toFixed(3)}`}
+                          className="flex h-full flex-1 flex-col justify-end gap-px"
+                        >
+                          {d.errors > 0 && (
+                            <div
+                              className="mx-auto w-full max-w-8 rounded-t-sm bg-danger/60"
+                              style={{ height: `${(d.errors / maxQ) * 100}%` }}
+                            />
+                          )}
+                          {d.questions > 0 && (
+                            <div
+                              className={
+                                d.errors > 0
+                                  ? "mx-auto w-full max-w-8 bg-accent"
+                                  : "mx-auto w-full max-w-8 rounded-t-sm bg-accent"
+                              }
+                              style={{
+                                height: `${Math.max((d.questions / maxQ) * 100, 3)}%`,
+                              }}
+                            />
+                          )}
+                          {total === 0 && (
+                            <div className="mx-auto h-1 w-full max-w-8 rounded-t-sm bg-surface-raised" />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="mt-1.5 flex gap-1.5 border-t border-border pt-1.5">
+                    {days.map((d, i) => (
+                      <span
+                        key={d.date}
+                        className="flex-1 text-center font-mono text-[9px] text-subtle"
+                      >
+                        {i % 2 === 0 ? d.date.slice(5).replace("-", "/") : ""}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               )}
               <p className="mt-3 text-xs text-subtle">

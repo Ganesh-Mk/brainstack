@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { api, ApiError, isBackendConfigured } from "@/lib/api";
 import { useMounted } from "@/hooks/useMounted";
 import { AdminsOnly } from "@/components/patterns/ManagersOnly";
@@ -18,12 +18,16 @@ export function GeneralSettingsView() {
   const role = useSessionStore((s) => s.role);
   const tenant = useSessionStore((s) => s.tenant);
   const hydrate = useSessionStore((s) => s.hydrate);
-  const [name, setName] = useState("");
+  const [name, setName] = useState(tenant.name);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
+  // Adjust-during-render: sync the field when the tenant changes (hydrate
+  // after rename, or a workspace switch) without an effect.
+  const [seenTenant, setSeenTenant] = useState(tenant.name);
+  if (seenTenant !== tenant.name) {
+    setSeenTenant(tenant.name);
     setName(tenant.name);
-  }, [tenant.name]);
+  }
 
   if (!mounted) return <Skeleton className="h-48 w-full rounded-2xl" />;
   if (role !== "admin") return <AdminsOnly what="Workspace configuration" />;

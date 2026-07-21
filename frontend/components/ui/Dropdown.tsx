@@ -61,7 +61,7 @@ export function Dropdown({
           role="menu"
           onClick={() => setOpen(false)}
           className={cn(
-            "bs-scale-in absolute top-full z-40 mt-1.5 min-w-52 overflow-hidden rounded-xl border border-border bg-surface p-1 shadow-lg",
+            "bs-scale-in absolute top-full z-50 mt-1.5 min-w-52 overflow-hidden rounded-xl border border-border bg-surface p-1 shadow-lg",
             align === "right" ? "right-0" : "left-0",
           )}
         >

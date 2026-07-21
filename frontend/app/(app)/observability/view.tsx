@@ -29,7 +29,7 @@ export function ObservabilityView() {
 
   if (!mounted)
     return (
-      <div className="mx-auto w-full max-w-6xl space-y-4">
+      <div className="w-full max-w-6xl space-y-4">
         <Skeleton className="h-10 w-64" />
         <Skeleton className="h-72 w-full rounded-2xl" />
       </div>
@@ -38,7 +38,7 @@ export function ObservabilityView() {
   const rows = data ?? [];
 
   return (
-    <div className="bs-fade-up mx-auto w-full max-w-6xl space-y-6">
+    <div className="bs-fade-up w-full max-w-6xl space-y-6">
       <PageHeader
         icon={Activity}
         title="Observability"
