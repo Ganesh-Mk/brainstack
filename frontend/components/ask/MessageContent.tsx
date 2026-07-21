@@ -224,6 +224,25 @@ function renderInline(
   });
 }
 
+/** One markdown-style `| a | b |` line → trimmed cells. */
+function splitRow(line: string): string[] {
+  return line
+    .trim()
+    .replace(/^\|/, "")
+    .replace(/\|$/, "")
+    .split("|")
+    .map((c) => c.trim());
+}
+
+const isTableLine = (line: string) =>
+  line.trim().startsWith("|") && line.trim().endsWith("|");
+const isSeparatorRow = (cells: string[]) =>
+  cells.length > 0 && cells.every((c) => /^:?-{2,}:?$/.test(c));
+
+type Block =
+  | { type: "p" | "ul" | "ol"; lines: string[] }
+  | { type: "table"; header: string[] | null; rows: string[][] };
+
 export function MessageContent({
   content,
   sources,
@@ -236,19 +255,41 @@ export function MessageContent({
   onOpenSource?: (s: ApiSource) => void;
   className?: string;
 }) {
-  // Group lines into paragraphs and dash-lists.
-  const blocks: { type: "p" | "ul"; lines: string[] }[] = [];
+  // Group lines into paragraphs, dash/numbered lists and pipe-tables. The
+  // model mostly writes prose, but tabular asks (workloads, stats) come back
+  // as markdown tables — rendering the pipes as text is unreadable.
+  const blocks: Block[] = [];
   for (const raw of content.split("\n")) {
     const line = raw.trimEnd();
+    const last = blocks[blocks.length - 1];
     if (!line.trim()) {
       blocks.push({ type: "p", lines: [] }); // paragraph break
       continue;
     }
-    const isItem = /^\s*[-*]\s+/.test(line);
-    const last = blocks[blocks.length - 1];
-    if (isItem) {
+    if (isTableLine(line)) {
+      const cells = splitRow(line);
+      if (last?.type === "table") {
+        if (isSeparatorRow(cells)) {
+          // header separator: promote the previous row to a header
+          if (last.header === null && last.rows.length > 0) {
+            last.header = last.rows.shift() ?? null;
+          }
+        } else {
+          last.rows.push(cells);
+        }
+      } else {
+        blocks.push({ type: "table", header: null, rows: [cells] });
+      }
+      continue;
+    }
+    const isBullet = /^\s*[-*]\s+/.test(line);
+    const isNumbered = /^\s*\d+[.)]\s+/.test(line);
+    if (isBullet) {
       if (last?.type === "ul") last.lines.push(line);
       else blocks.push({ type: "ul", lines: [line] });
+    } else if (isNumbered) {
+      if (last?.type === "ol") last.lines.push(line);
+      else blocks.push({ type: "ol", lines: [line] });
     } else {
       if (last?.type === "p" && last.lines.length > 0) last.lines.push(line);
       else blocks.push({ type: "p", lines: [line] });
@@ -258,6 +299,43 @@ export function MessageContent({
   return (
     <div className={cn("space-y-2.5 text-sm leading-6", className)}>
       {blocks.map((block, i) => {
+        if (block.type === "table") {
+          if (block.rows.length === 0 && !block.header) return null;
+          return (
+            <div
+              key={i}
+              className="overflow-x-auto rounded-xl border border-border"
+            >
+              <table className="w-full text-left text-[13px]">
+                {block.header && (
+                  <thead>
+                    <tr className="border-b border-border bg-surface-raised/60">
+                      {block.header.map((cell, j) => (
+                        <th
+                          key={j}
+                          className="px-3 py-2 font-semibold whitespace-nowrap text-primary"
+                        >
+                          {renderInline(cell, sources, onOpenSource)}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                )}
+                <tbody className="divide-y divide-border">
+                  {block.rows.map((row, r) => (
+                    <tr key={r}>
+                      {row.map((cell, c) => (
+                        <td key={c} className="px-3 py-2 align-top text-muted">
+                          {renderInline(cell, sources, onOpenSource)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+        }
         if (block.lines.length === 0) return null;
         if (block.type === "ul") {
           return (
@@ -278,6 +356,29 @@ export function MessageContent({
                 </li>
               ))}
             </ul>
+          );
+        }
+        if (block.type === "ol") {
+          return (
+            <ol key={i} className="space-y-1 pl-1">
+              {block.lines.map((line, j) => {
+                const num = line.match(/^\s*(\d+)[.)]\s+/)?.[1] ?? String(j + 1);
+                return (
+                  <li key={j} className="flex gap-2">
+                    <span className="w-4 shrink-0 text-right font-mono text-xs leading-6 text-subtle">
+                      {num}.
+                    </span>
+                    <span>
+                      {renderInline(
+                        line.replace(/^\s*\d+[.)]\s+/, ""),
+                        sources,
+                        onOpenSource,
+                      )}
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
           );
         }
         return (

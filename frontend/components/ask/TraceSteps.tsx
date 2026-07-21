@@ -4,6 +4,7 @@ import {
   Brain,
   Globe,
   PenLine,
+  PlugZap,
   RefreshCw,
   Search,
   Zap,
@@ -16,6 +17,7 @@ const KIND_META: Record<
   ApiTraceStep["kind"],
   { icon: LucideIcon; tint: string }
 > = {
+  connect: { icon: PlugZap, tint: "text-muted" },
   planning: { icon: Brain, tint: "text-muted" },
   knowledge: { icon: Search, tint: "text-accent" },
   web: { icon: Globe, tint: "text-accent" },
@@ -42,17 +44,26 @@ export function TraceSteps({
   drafting?: boolean;
   className?: string;
 }) {
-  const shown: ApiTraceStep[] = drafting
+  // Live runs get a synthetic first node instead of a "Starting up…" line —
+  // it pulses alone while the stream connects, then reads as done the moment
+  // Planning arrives.
+  const withConnect: ApiTraceStep[] = live
     ? [
+        { n: 0, kind: "connect", label: "Connecting to your workspace" },
         ...steps,
-        { n: steps.length + 1, kind: "drafting", label: "Drafting the answer" },
       ]
     : steps;
+  const shown: ApiTraceStep[] = drafting
+    ? [
+        ...withConnect,
+        { n: steps.length + 1, kind: "drafting", label: "Drafting the answer" },
+      ]
+    : withConnect;
 
   if (shown.length === 0) {
     return (
       <p className={cn("px-2 py-6 text-center text-xs text-subtle", className)}>
-        {live ? "Starting up…" : "No trace recorded for this answer."}
+        No trace recorded for this answer.
       </p>
     );
   }

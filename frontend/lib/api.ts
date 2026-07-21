@@ -100,6 +100,7 @@ export type ApiSource = {
 export type ApiTraceStep = {
   n: number;
   kind:
+    | "connect" // synthetic, frontend-only: shown before the first real step
     | "planning"
     | "knowledge"
     | "web"

@@ -253,13 +253,26 @@ export function AskView() {
       onReset: () => setLiveText(""), // reflection rejected the draft
       onDelta: (text) => setLiveText((prev) => prev + text),
       onDone: () => {
-        setStreaming(false);
-        setPendingQuestion(null);
-        setLiveText("");
-        setLiveSources(null);
-        setLiveTrace([]);
-        void openConversation(convoId);
-        void loadConversations();
+        // Swap the streamed bubble for the persisted message in ONE render:
+        // fetch the saved conversation silently (no loading skeleton), then
+        // set messages and clear the live state together — React batches
+        // them, so the answer never flickers or reloads.
+        void (async () => {
+          try {
+            const detail = await api.getConversation(token, convoId);
+            setMessages(detail.messages);
+            setStreaming(false);
+            setPendingQuestion(null);
+            setLiveText("");
+            setLiveSources(null);
+            setLiveTrace([]);
+          } catch {
+            // Couldn't refetch — keep the streamed question + answer on
+            // screen rather than flashing them away.
+            setStreaming(false);
+          }
+          void loadConversations();
+        })();
       },
       onError: (message) => {
         setStreaming(false);
@@ -515,14 +528,14 @@ export function AskView() {
                     </div>
                   </div>
                 )}
-                {streaming && (
+                {(streaming || liveText.length > 0) && (
                   <div className="flex">
                     <div className="w-full max-w-[92%] rounded-2xl rounded-bl-md border border-border bg-canvas px-4 py-3">
                       {/* The agent's thinking, live, right in the chat. */}
                       <TraceSteps
                         steps={liveTrace}
-                        live
-                        drafting={liveText.length > 0}
+                        live={streaming}
+                        drafting={streaming && liveText.length > 0}
                         className="mb-1"
                       />
                       {liveText && (
@@ -532,7 +545,9 @@ export function AskView() {
                             sources={liveSources}
                             onOpenSource={openSource}
                           />
-                          <span className="mt-1 inline-block h-3.5 w-0.5 animate-pulse bg-accent align-middle" />
+                          {streaming && (
+                            <span className="mt-1 inline-block h-3.5 w-0.5 animate-pulse bg-accent align-middle" />
+                          )}
                         </div>
                       )}
                     </div>
