@@ -283,9 +283,12 @@ export function HeroDemo() {
       await sleep(240);
       if (cancelled) return;
       setPlaying((p) => ({ ...p, showMeta: true }));
-      // 5 — hold, then advance
+      // 5 — hold, then advance. Reset the playback for the NEXT scenario
+      // in the same tick as the index change — otherwise one frame renders
+      // the new scenario with the old (finished) playback state.
       await sleep(HOLD_MS);
       if (cancelled) return;
+      setPlaying(initialPlayback(SCENARIOS[(idx + 1) % SCENARIOS.length]));
       setIdx((i) => (i + 1) % SCENARIOS.length);
     }
 
@@ -301,7 +304,12 @@ export function HeroDemo() {
     pb.tokens === Infinity ? units.length : pb.tokens,
   );
   const answerDone = visibleUnits.length >= units.length;
-  const anyAnswer = visibleUnits.length > 0;
+  // The answer may NEVER appear before the trace finishes — belt (the
+  // script is sequential) and suspenders (any stale playback state from a
+  // scenario switch can't leak an early answer through).
+  const traceDone =
+    pb.stepState.length > 0 && pb.stepState.every((v) => v === 2);
+  const anyAnswer = traceDone && visibleUnits.length > 0;
 
   return (
     <div className="relative">
@@ -379,7 +387,7 @@ export function HeroDemo() {
 
             {/* cited source panel */}
             <AnimatePresence>
-              {pb.showSource && scenario.source && (
+              {traceDone && pb.showSource && scenario.source && (
                 <motion.div
                   initial={reduced ? false : { opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -448,7 +456,7 @@ export function HeroDemo() {
             {/* meta card */}
             <div className="mt-4 min-h-[42px]">
               <AnimatePresence>
-                {pb.showMeta && (
+                {traceDone && pb.showMeta && (
                   <motion.div
                     initial={reduced ? false : { opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -474,7 +482,12 @@ export function HeroDemo() {
               <button
                 key={s.key}
                 type="button"
-                onClick={() => setIdx(i)}
+                onClick={() => {
+                  // Reset playback with the index so no frame mixes the new
+                  // scenario with the old scenario's finished state.
+                  setPlaying(initialPlayback(s));
+                  setIdx(i);
+                }}
                 aria-label={`Show the “${s.tab}” demo`}
                 className={cn(
                   "relative overflow-hidden rounded-full px-2.5 py-1 text-[10px] font-semibold transition",

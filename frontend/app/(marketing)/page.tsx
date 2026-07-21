@@ -1,22 +1,18 @@
 import type { Metadata } from "next";
 import {
-  Activity,
   ArrowRight,
   Brain,
   Building2,
   Cable,
-  ChartLine,
-  FileText,
   Lock,
   MessageSquare,
   Search,
   ShieldCheck,
-  Sparkles,
-  Ticket,
   Upload,
   Zap,
 } from "lucide-react";
 import { Hero } from "@/components/marketing/Hero";
+import { FeatureCarousel } from "@/components/marketing/FeatureCarousel";
 import { StackMarquee } from "@/components/marketing/StackMarquee";
 import { PipelineAnimation } from "@/components/marketing/PipelineAnimation";
 import { AgentGraph } from "@/components/marketing/AgentGraph";
@@ -105,7 +101,7 @@ function HowItWorks() {
         {steps.map((s) => (
           <StaggerItem key={s.title}>
             <TiltCard className="relative h-full overflow-hidden rounded-2xl border border-border bg-surface p-6 shadow-xs">
-              <span className="absolute top-4 right-5 text-4xl font-semibold text-surface-raised select-none">
+              <span className="absolute top-3 right-5 text-5xl font-bold tracking-tight text-accent-200 select-none">
                 {s.step}
               </span>
               <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-on-primary shadow-xs">
@@ -235,58 +231,7 @@ function RetrievalSection() {
   );
 }
 
-/* ── Feature grid ────────────────────────────────────────────────────── */
-const FEATURES = [
-  {
-    icon: MessageSquare,
-    category: "Intelligence",
-    title: "Grounded Q&A",
-    text: "Answers built only from your own knowledge — with “I don't know” instead of made-up facts.",
-  },
-  {
-    icon: Sparkles,
-    category: "Intelligence",
-    title: "Live agent trace",
-    text: "Watch every reasoning step in real time: planning, searching, acting, drafting.",
-  },
-  {
-    icon: FileText,
-    category: "Trust",
-    title: "Inline citations",
-    text: "Click any [1] to open the source at the exact page, with the grounding passage beside it.",
-  },
-  {
-    icon: Upload,
-    category: "Knowledge",
-    title: "Multi-source ingestion",
-    text: "PDFs, Word docs, URLs — parsed, chunked and indexed with live progress.",
-  },
-  {
-    icon: Ticket,
-    category: "Actions",
-    title: "Role-based actions",
-    text: "Managers assign tickets and pull analytics from chat. Employees can't — by construction.",
-  },
-  {
-    icon: ChartLine,
-    category: "Insights",
-    title: "Quality you can measure",
-    text: "Faithfulness scores, latency, cost per answer — a dashboard, not a demo.",
-  },
-  {
-    icon: Building2,
-    category: "Platform",
-    title: "True multi-tenancy",
-    text: "Every company's knowledge lives in its own isolated namespace. Always.",
-  },
-  {
-    icon: Activity,
-    category: "Platform",
-    title: "Full observability",
-    text: "Per-request traces of what was retrieved, which tools ran, and what it cost.",
-  },
-];
-
+/* ── Feature carousel ────────────────────────────────────────────────── */
 function FeatureGrid() {
   return (
     <section className="border-t border-border bg-canvas">
@@ -297,26 +242,11 @@ function FeatureGrid() {
           accent={["workspace,"]}
           sub="The chat is just the entry point. Everything around it — the library, the trace, the citations, the analytics — is what makes it a product your company can trust."
         />
-        <Stagger className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {FEATURES.map((f) => (
-            <StaggerItem key={f.title}>
-              <TiltCard className="h-full rounded-2xl border border-border bg-surface p-5 shadow-xs transition-shadow hover:shadow-lg">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-soft text-accent">
-                  <f.icon className="h-4.5 w-4.5" />
-                </span>
-                <p className="mt-4 text-xs font-semibold tracking-wide text-accent-700 uppercase">
-                  {f.category}
-                </p>
-                <h3 className="mt-1 text-base font-semibold text-primary">
-                  {f.title}
-                </h3>
-                <p className="mt-1.5 text-sm leading-6 text-muted">{f.text}</p>
-              </TiltCard>
-            </StaggerItem>
-          ))}
-        </Stagger>
+        <Reveal delay={0.15} className="mt-10">
+          <FeatureCarousel />
+        </Reveal>
         <Reveal delay={0.15}>
-          <div className="mt-10 text-center">
+          <div className="mt-6 text-center">
             <ButtonLink href="/features" variant="outline">
               Explore every feature
               <ArrowRight className="h-4 w-4" />

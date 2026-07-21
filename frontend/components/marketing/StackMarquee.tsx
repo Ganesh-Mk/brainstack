@@ -1,21 +1,47 @@
+import { Database } from "lucide-react";
+import {
+  siClaude,
+  siDocker,
+  siFastapi,
+  siLanggraph,
+  siModelcontextprotocol,
+  siNextdotjs,
+  siPostgresql,
+  siRedis,
+  siSupabase,
+  siTailwindcss,
+  siVercel,
+} from "simple-icons";
 import { Marquee } from "@/components/marketing/motion";
 
 /** The real production stack — no logo-wall of fake customers, just what
- *  actually runs the platform. */
-const STACK = [
-  "LangGraph agent",
-  "Claude",
-  "Pinecone",
-  "FastAPI",
-  "PostgreSQL",
-  "Redis",
-  "MCP protocol",
-  "hybrid BM25 + dense retrieval",
-  "SSE streaming",
-  "LLM-as-judge evals",
-  "Next.js",
-  "namespace-per-tenant isolation",
+ *  actually runs the platform, with each technology's actual mark. */
+
+type SimpleIcon = { title: string; path: string };
+
+const STACK: { label: string; icon?: SimpleIcon }[] = [
+  { label: "LangGraph agent", icon: siLanggraph },
+  { label: "Claude", icon: siClaude },
+  { label: "Pinecone" }, // no official mark in simple-icons — generic glyph
+  { label: "FastAPI", icon: siFastapi },
+  { label: "PostgreSQL", icon: siPostgresql },
+  { label: "Supabase", icon: siSupabase },
+  { label: "Redis", icon: siRedis },
+  { label: "MCP protocol", icon: siModelcontextprotocol },
+  { label: "Next.js", icon: siNextdotjs },
+  { label: "Tailwind CSS", icon: siTailwindcss },
+  { label: "Vercel", icon: siVercel },
+  { label: "Docker", icon: siDocker },
 ];
+
+function TechIcon({ icon }: { icon?: SimpleIcon }) {
+  if (!icon) return <Database className="h-4 w-4" aria-hidden />;
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" aria-hidden>
+      <path d={icon.path} />
+    </svg>
+  );
+}
 
 export function StackMarquee() {
   return (
@@ -26,11 +52,11 @@ export function StackMarquee() {
       <Marquee duration={40}>
         {STACK.map((item) => (
           <span
-            key={item}
-            className="flex shrink-0 items-center gap-2.5 font-mono text-sm text-muted"
+            key={item.label}
+            className="flex shrink-0 items-center gap-2 font-mono text-sm text-muted"
           >
-            <span className="h-1.5 w-1.5 rounded-full bg-accent-300" />
-            {item}
+            <TechIcon icon={item.icon} />
+            {item.label}
           </span>
         ))}
       </Marquee>

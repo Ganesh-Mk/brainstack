@@ -28,18 +28,16 @@ export function Hero() {
 
           <TextReveal
             as="h1"
-            text="Your company's second brain — fully stacked."
-            accent={["fully", "stacked"]}
+            text="Your company's second brain."
+            accent={["second", "brain."]}
             delay={0.12}
             className="mt-5 text-[2.6rem] leading-[1.08] font-semibold tracking-tight text-primary sm:text-5xl lg:text-6xl"
           />
 
           <Reveal delay={0.35} y={18}>
             <p className="mt-5 max-w-xl text-lg leading-8 text-muted">
-              BrainStack turns your documents and systems into an intelligent
-              assistant your whole team can talk to. Grounded answers with
-              citations. A live view of the AI&apos;s reasoning. Real actions in
-              your own tools.
+              Ask in plain language, get answers grounded in your own documents
+              — cited, transparent, and able to act in your tools.
             </p>
           </Reveal>
 
