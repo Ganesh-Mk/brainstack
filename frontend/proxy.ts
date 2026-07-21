@@ -27,7 +27,6 @@ const MARKETING_PREFIXES = [
   "/security",
   "/about",
   "/contact",
-  "/blog",
   "/docs",
   "/legal",
 ];

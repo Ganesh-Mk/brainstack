@@ -283,7 +283,6 @@ export const MARKETING_LINKS: {
   { label: "Features", href: "/features" },
   { label: "Security", href: "/security" },
   { label: "Docs", href: "/docs" }, // the API reference is live (Phase 11g)
-  { label: "Blog", href: "/blog", soon: true },
 ];
 
 /** Can `role` see this nav item? */

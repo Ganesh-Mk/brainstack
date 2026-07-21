@@ -24,8 +24,7 @@ const COLUMNS: {
     title: "Resources",
     links: [
       { label: "Docs", href: "/docs" },
-      { label: "Blog", href: "/blog", soon: true },
-    ],
+        ],
   },
   {
     title: "Legal",

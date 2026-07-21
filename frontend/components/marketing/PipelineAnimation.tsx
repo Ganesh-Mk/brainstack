@@ -47,7 +47,7 @@ const STAGES: Stage[] = [
     icon: FileText,
     title: "Chunk",
     detail: "Overlapping passages",
-    mono: "~800 tokens · overlap kept",
+    mono: "~400 tokens · overlap kept",
     ms: 1100,
   },
   {
@@ -130,7 +130,9 @@ export function PipelineAnimation() {
           const state = i < active ? 2 : i === active ? 1 : 0;
           return (
             <li key={stage.title} className="relative flex gap-4 lg:flex-col lg:gap-0">
-              <div className="relative shrink-0">
+              {/* h-12 w-12: the wrapper must be exactly the icon tile's size
+                  or the absolute check pins to the column edge instead. */}
+              <div className="relative h-12 w-12 shrink-0">
                 <motion.span
                   animate={
                     reduced

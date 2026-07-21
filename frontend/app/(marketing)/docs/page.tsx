@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, BookOpen, Cable, Rocket, Upload } from "lucide-react";
-import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import {
   Reveal,
@@ -14,25 +13,28 @@ export const metadata: Metadata = { title: "Docs" };
 
 const SECTIONS = [
   {
-    icon: BookOpen,
-    title: "API reference",
-    text: "Ask, ingest and search programmatically — scopes, limits, errors.",
-    href: "/docs/api",
-  },
-  {
     icon: Rocket,
     title: "Getting started",
-    text: "Create a workspace, invite the team, add your first sources.",
+    text: "Create a workspace, add your first sources, ask, invite the team.",
+    href: "/docs/getting-started",
   },
   {
     icon: Upload,
     title: "Knowledge & ingestion",
-    text: "Supported formats, chunking behavior, and metadata.",
+    text: "Supported formats, the pipeline, chunking behavior, retrieval and deletion.",
+    href: "/docs/knowledge",
   },
   {
     icon: Cable,
     title: "Connecting your systems (MCP)",
     text: "Stand up a Company MCP Server and gate it by role.",
+    href: "/docs/mcp",
+  },
+  {
+    icon: BookOpen,
+    title: "API reference",
+    text: "Ask, ingest and search programmatically — scopes, limits, errors.",
+    href: "/docs/api",
   },
 ];
 
@@ -46,36 +48,30 @@ export default function DocsPage() {
         />
         <Reveal delay={0.2}>
           <p className="mx-auto mt-4 max-w-xl text-base leading-7 text-muted">
-            Guides and references land alongside the features they document. The
-            API reference is live; the rest are on their way.
+            Everything from first workspace to programmatic access — written
+            against the product as it actually behaves.
           </p>
         </Reveal>
       </div>
       <Stagger className="mt-12 grid gap-5 sm:grid-cols-2">
-        {SECTIONS.map((s) => {
-          const body = (
-            <Card className="h-full p-5" interactive={Boolean(s.href)}>
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-soft text-accent">
-                <s.icon className="h-4.5 w-4.5" />
-              </span>
-              <h2 className="mt-4 flex items-center gap-2 text-base font-semibold text-primary">
-                {s.title}
-                {!s.href && <Badge variant="lock">Coming Soon</Badge>}
-              </h2>
-              <p className="mt-1.5 text-sm leading-6 text-muted">{s.text}</p>
-              {s.href && (
+        {SECTIONS.map((s) => (
+          <StaggerItem key={s.title}>
+            <Link href={s.href}>
+              <Card className="h-full p-5" interactive>
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-soft text-accent">
+                  <s.icon className="h-4.5 w-4.5" />
+                </span>
+                <h2 className="mt-4 text-base font-semibold text-primary">
+                  {s.title}
+                </h2>
+                <p className="mt-1.5 text-sm leading-6 text-muted">{s.text}</p>
                 <span className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-accent">
                   Read it <ArrowRight className="h-3.5 w-3.5" />
                 </span>
-              )}
-            </Card>
-          );
-          return (
-            <StaggerItem key={s.title}>
-              {s.href ? <Link href={s.href}>{body}</Link> : body}
-            </StaggerItem>
-          );
-        })}
+              </Card>
+            </Link>
+          </StaggerItem>
+        ))}
       </Stagger>
     </div>
   );

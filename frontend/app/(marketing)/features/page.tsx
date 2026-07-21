@@ -324,20 +324,24 @@ export default function FeaturesPage() {
             accent={["decides,"]}
           />
           <div className="mt-8 grid items-start gap-8 lg:grid-cols-[1fr_1.1fr]">
-            <Stagger className="grid gap-5 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+            {/* Compact rows, not tiles — uniform height, aligned with the
+                demo beside them. */}
+            <Stagger className="space-y-3">
               {INTELLIGENCE.map((f) => (
-                <StaggerItem key={f.title} className="h-full">
-                  <TiltCard className="h-full rounded-2xl border border-border bg-surface p-5 shadow-xs">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-soft text-accent">
-                      <f.icon className="h-4.5 w-4.5" />
+                <StaggerItem key={f.title}>
+                  <div className="flex gap-3.5 rounded-2xl border border-border bg-surface p-4 shadow-xs">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent">
+                      <f.icon className="h-4 w-4" />
                     </span>
-                    <h3 className="mt-4 text-base font-semibold text-primary">
-                      {f.title}
-                    </h3>
-                    <p className="mt-1.5 text-sm leading-6 text-muted">
-                      {f.text}
-                    </p>
-                  </TiltCard>
+                    <div className="min-w-0">
+                      <h3 className="text-sm font-semibold text-primary">
+                        {f.title}
+                      </h3>
+                      <p className="mt-0.5 text-[13px] leading-5 text-muted">
+                        {f.text}
+                      </p>
+                    </div>
+                  </div>
                 </StaggerItem>
               ))}
             </Stagger>
