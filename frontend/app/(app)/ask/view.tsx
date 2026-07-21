@@ -5,14 +5,13 @@ import {
   ArrowUp,
   ChevronRight,
   FileText,
-  Globe,
   MessageSquare,
   MessagesSquare,
   PanelLeft,
   Plus,
-  Sparkles,
   Trash2,
   Workflow,
+  X,
 } from "lucide-react";
 import {
   api,
@@ -25,7 +24,7 @@ import {
   streamAsk,
 } from "@/lib/api";
 import { cn } from "@/lib/cn";
-import { MessageContent, SourcePopover } from "@/components/ask/MessageContent";
+import { MessageContent } from "@/components/ask/MessageContent";
 import { PdfViewer } from "@/components/ask/PdfViewer";
 import { TraceSteps, traceDuration } from "@/components/ask/TraceSteps";
 import { Badge } from "@/components/ui/Badge";
@@ -83,7 +82,7 @@ const DEMO_MESSAGES: ApiMessage[] = [
 
 // ── Small pieces ────────────────────────────────────────────────────────────
 
-/** "How the agent worked" — the trace lives INSIDE the chat now, as a
+/** "How the agent worked" — the trace lives INSIDE the chat, as a
  * collapsible disclosure on each answered message. */
 function InlineTrace({ steps }: { steps: ApiTraceStep[] }) {
   const [open, setOpen] = useState(false);
@@ -115,77 +114,14 @@ function InlineTrace({ steps }: { steps: ApiTraceStep[] }) {
   );
 }
 
-/** One source chip — same rich hover card as the `[n]` citations, click
- * opens the PDF page or web page. */
-function SourceChip({
-  source,
-  onOpen,
-}: {
-  source: ApiSource;
-  onOpen: (s: ApiSource) => void;
-}) {
-  const ref = useRef<HTMLButtonElement>(null);
-  const [anchor, setAnchor] = useState<DOMRect | null>(null);
-  const show = () => setAnchor(ref.current?.getBoundingClientRect() ?? null);
-  const hide = () => setAnchor(null);
-  return (
-    <>
-      <button
-        ref={ref}
-        type="button"
-        onClick={() => onOpen(source)}
-        onMouseEnter={show}
-        onMouseLeave={hide}
-        onFocus={show}
-        onBlur={hide}
-        className="flex max-w-52 items-center gap-1.5 rounded-lg border border-border bg-canvas px-2 py-1 text-[11px] text-muted transition hover:border-accent hover:bg-accent-soft/40 hover:text-primary"
-      >
-        <span className="flex h-3.5 min-w-3.5 items-center justify-center rounded bg-accent-soft px-0.5 font-mono text-[9px] font-semibold text-accent-700">
-          {source.n}
-        </span>
-        <span className="min-w-0 truncate">{source.title}</span>
-        {source.source_type === "url" ? (
-          <Globe className="h-2.5 w-2.5 shrink-0 text-subtle" />
-        ) : (
-          <span className="shrink-0 font-mono text-[9px] text-subtle">
-            p.{source.page}
-          </span>
-        )}
-      </button>
-      {anchor && <SourcePopover source={source} anchor={anchor} />}
-    </>
-  );
-}
-
-/** The answer's evidence — its own section right under the response. */
-function SourcesSection({
-  sources,
-  onOpen,
-}: {
-  sources: ApiSource[];
-  onOpen: (s: ApiSource) => void;
-}) {
-  return (
-    <div className="mt-2 max-w-[92%] rounded-xl border border-border bg-surface px-3 py-2.5">
-      <p className="text-[10px] font-semibold tracking-wide text-subtle uppercase">
-        Sources · {sources.length}
-      </p>
-      <div className="mt-2 flex flex-wrap gap-1.5">
-        {sources.map((s) => (
-          <SourceChip key={s.n} source={s} onOpen={onOpen} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // ── The view ────────────────────────────────────────────────────────────────
 
 export function AskView() {
   const demo = !isBackendConfigured;
   const token = useSessionStore((s) => s.token);
 
-  const [historyOpen, setHistoryOpen] = useState(true);
+  const [historyOpen, setHistoryOpen] = useState(true); // desktop pane
+  const [mobileHistory, setMobileHistory] = useState(false); // phone drawer
   const [conversations, setConversations] = useState<ApiConversation[] | null>(
     demo ? [] : null,
   );
@@ -344,119 +280,157 @@ export function AskView() {
 
   const activeConvo = conversations?.find((c) => c.id === activeId);
 
+  // ── conversation history (shared by desktop pane and phone drawer) ──────
+
+  const historyPane = (onClose: () => void) => (
+    <div className="flex h-full w-64 flex-col border-r border-border bg-canvas">
+      {/* h-12: identical to the chat header so the two borders align */}
+      <div className="flex h-12 shrink-0 items-center justify-between border-b border-border pr-2 pl-3.5">
+        <p className="text-xs font-semibold tracking-wide text-subtle uppercase">
+          Conversations
+        </p>
+        <div className="flex items-center">
+          <button
+            type="button"
+            onClick={() => void newConversation()}
+            aria-label="New conversation"
+            className="rounded-md p-1.5 text-subtle transition hover:bg-surface-raised hover:text-primary"
+          >
+            <Plus className="h-4 w-4" />
+          </button>
+          <Tooltip label="Hide history">
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Hide conversation history"
+              className="rounded-md p-1.5 text-subtle transition hover:bg-surface-raised hover:text-primary"
+            >
+              <PanelLeft className="h-4 w-4" />
+            </button>
+          </Tooltip>
+        </div>
+      </div>
+      <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto p-1.5">
+        {demo ? (
+          <div className="group flex items-center rounded-lg bg-surface-raised px-2.5 py-2">
+            <MessageSquare className="mr-2 h-3.5 w-3.5 shrink-0 text-subtle" />
+            <span className="truncate text-xs font-medium text-primary">
+              What changed in the refund policy?
+            </span>
+          </div>
+        ) : conversations === null ? (
+          [0, 1, 2].map((i) => <Skeleton key={i} className="h-8 rounded-lg" />)
+        ) : conversations.length === 0 ? (
+          <p className="px-2.5 py-6 text-center text-xs leading-5 text-subtle">
+            No conversations yet.
+            <br />
+            Ask your first question →
+          </p>
+        ) : (
+          conversations.map((c) => (
+            <div
+              key={c.id}
+              className={cn(
+                "group flex cursor-pointer items-center rounded-lg px-2.5 py-2 transition",
+                c.id === activeId
+                  ? "bg-surface-raised"
+                  : "hover:bg-surface-raised/60",
+              )}
+              onClick={() => {
+                setMobileHistory(false);
+                void openConversation(c.id);
+              }}
+            >
+              <MessageSquare className="mr-2 h-3.5 w-3.5 shrink-0 text-subtle" />
+              <span
+                className={cn(
+                  "min-w-0 flex-1 truncate text-xs",
+                  c.id === activeId ? "font-medium text-primary" : "text-muted",
+                )}
+              >
+                {c.title}
+              </span>
+              <button
+                type="button"
+                aria-label={`Delete ${c.title}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void removeConversation(c.id);
+                }}
+                className="ml-1 rounded p-0.5 text-subtle opacity-0 transition group-hover:opacity-100 hover:text-danger"
+              >
+                <Trash2 className="h-3 w-3" />
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+
   // ── render ───────────────────────────────────────────────────────────────
 
   return (
     <div className="h-full min-h-0">
       {/* ONE card: conversation history (collapsible, animated) + chat. */}
-      <section className="flex h-full min-h-0 overflow-hidden rounded-2xl border border-border bg-surface shadow-xs">
-        {/* ── Conversation history ─────────────────────────────────────── */}
+      <section className="relative flex h-full min-h-0 overflow-hidden rounded-2xl border border-border bg-surface shadow-xs">
+        {/* ── History · desktop pane, animated width ───────────────────── */}
         <div
           className={cn(
             "hidden shrink-0 overflow-hidden transition-[width] duration-300 ease-in-out md:block",
             historyOpen ? "w-64" : "w-0",
           )}
         >
-          <div className="flex h-full w-64 flex-col border-r border-border bg-canvas/40">
-            <div className="flex items-center justify-between border-b border-border px-3.5 py-3">
-              <p className="text-xs font-semibold tracking-wide text-subtle uppercase">
-                Conversations
-              </p>
+          {historyPane(() => setHistoryOpen(false))}
+        </div>
+
+        {/* ── History · phone drawer ───────────────────────────────────── */}
+        {mobileHistory && (
+          <div className="absolute inset-0 z-20 md:hidden">
+            <div
+              className="bs-fade-in absolute inset-0 bg-primary/30 backdrop-blur-sm"
+              onClick={() => setMobileHistory(false)}
+            />
+            <div className="bs-scale-in absolute inset-y-0 left-0 w-64 bg-canvas shadow-xl">
+              {historyPane(() => setMobileHistory(false))}
               <button
                 type="button"
-                onClick={() => void newConversation()}
-                aria-label="New conversation"
-                className="rounded-md p-1 text-subtle transition hover:bg-surface-raised hover:text-primary"
+                onClick={() => setMobileHistory(false)}
+                aria-label="Close history"
+                className="absolute top-2.5 right-[-38px] rounded-md bg-surface p-1.5 text-subtle shadow-md"
               >
-                <Plus className="h-4 w-4" />
+                <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="min-h-0 flex-1 space-y-0.5 overflow-y-auto p-1.5">
-              {demo ? (
-                <div className="group flex items-center rounded-lg bg-surface-raised px-2.5 py-2">
-                  <MessageSquare className="mr-2 h-3.5 w-3.5 shrink-0 text-subtle" />
-                  <span className="truncate text-xs font-medium text-primary">
-                    What changed in the refund policy?
-                  </span>
-                </div>
-              ) : conversations === null ? (
-                [0, 1, 2].map((i) => (
-                  <Skeleton key={i} className="h-8 rounded-lg" />
-                ))
-              ) : conversations.length === 0 ? (
-                <p className="px-2.5 py-6 text-center text-xs leading-5 text-subtle">
-                  No conversations yet.
-                  <br />
-                  Ask your first question →
-                </p>
-              ) : (
-                conversations.map((c) => (
-                  <div
-                    key={c.id}
-                    className={cn(
-                      "group flex cursor-pointer items-center rounded-lg px-2.5 py-2 transition",
-                      c.id === activeId
-                        ? "bg-surface-raised"
-                        : "hover:bg-surface-raised/60",
-                    )}
-                    onClick={() => void openConversation(c.id)}
-                  >
-                    <MessageSquare className="mr-2 h-3.5 w-3.5 shrink-0 text-subtle" />
-                    <span
-                      className={cn(
-                        "min-w-0 flex-1 truncate text-xs",
-                        c.id === activeId
-                          ? "font-medium text-primary"
-                          : "text-muted",
-                      )}
-                    >
-                      {c.title}
-                    </span>
-                    <button
-                      type="button"
-                      aria-label={`Delete ${c.title}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        void removeConversation(c.id);
-                      }}
-                      className="ml-1 rounded p-0.5 text-subtle opacity-0 transition group-hover:opacity-100 hover:text-danger"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
           </div>
-        </div>
+        )}
 
         {/* ── Chat ─────────────────────────────────────────────────────── */}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2.5 sm:px-4">
+          {/* h-12: identical to the conversations header — borders align */}
+          <div className="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-border px-3 sm:px-4">
             <div className="flex min-w-0 items-center gap-2">
-              <Tooltip label={historyOpen ? "Hide history" : "Show history"}>
-                <button
-                  type="button"
-                  onClick={() => setHistoryOpen((o) => !o)}
-                  aria-label={
-                    historyOpen
-                      ? "Hide conversation history"
-                      : "Show conversation history"
-                  }
-                  aria-expanded={historyOpen}
-                  className={cn(
-                    "hidden rounded-lg p-2 transition md:block",
-                    historyOpen
-                      ? "bg-surface-raised text-primary"
-                      : "text-muted hover:bg-surface-raised hover:text-primary",
-                  )}
-                >
-                  <PanelLeft className="h-4 w-4" />
-                </button>
-              </Tooltip>
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary text-on-primary">
-                <Sparkles className="h-3.5 w-3.5" />
-              </span>
+              {/* history toggle appears here ONLY when the pane is hidden */}
+              {!historyOpen && (
+                <Tooltip label="Show history">
+                  <button
+                    type="button"
+                    onClick={() => setHistoryOpen(true)}
+                    aria-label="Show conversation history"
+                    className="hidden rounded-lg p-1.5 text-muted transition hover:bg-surface-raised hover:text-primary md:block"
+                  >
+                    <PanelLeft className="h-4 w-4" />
+                  </button>
+                </Tooltip>
+              )}
+              <button
+                type="button"
+                onClick={() => setMobileHistory(true)}
+                aria-label="Show conversation history"
+                className="rounded-lg p-1.5 text-muted transition hover:bg-surface-raised hover:text-primary md:hidden"
+              >
+                <PanelLeft className="h-4 w-4" />
+              </button>
               <p className="truncate text-sm font-semibold text-primary">
                 {demo
                   ? "Ask BrainStack"
@@ -468,7 +442,7 @@ export function AskView() {
               variant="outline"
               size="sm"
               onClick={() => void newConversation()}
-              className="shrink-0"
+              className="h-8 shrink-0"
             >
               <Plus className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">New chat</span>
@@ -478,7 +452,7 @@ export function AskView() {
           {/* messages */}
           <div
             ref={scrollRef}
-            className="min-h-0 flex-1 overflow-y-auto px-4 py-5"
+            className="min-h-0 flex-1 overflow-y-auto px-3 py-5 sm:px-4"
           >
             {loadingMessages ? (
               <div className="mx-auto max-w-3xl space-y-4">
@@ -519,7 +493,7 @@ export function AskView() {
                       </div>
                     </div>
                   ) : (
-                    <div key={m.id} className="flex flex-col items-start">
+                    <div key={m.id} className="flex">
                       <div className="max-w-[92%] rounded-2xl rounded-bl-md border border-border bg-canvas px-4 py-3">
                         {m.trace && m.trace.length > 0 && (
                           <InlineTrace steps={m.trace} />
@@ -530,12 +504,6 @@ export function AskView() {
                           onOpenSource={openSource}
                         />
                       </div>
-                      {m.sources && m.sources.length > 0 && (
-                        <SourcesSection
-                          sources={m.sources}
-                          onOpen={openSource}
-                        />
-                      )}
                     </div>
                   ),
                 )}

@@ -22,26 +22,37 @@ const INLINE = /(\*\*[^*]+\*\*|`[^`]+`|\[\d+\](?:\[\d+\])*)/g;
 const CITE = /\[(\d+)\]/g;
 
 /** Hover card for one source — fixed-positioned so the chat scroll area
- * can't clip it. Pointer-events off: it's a preview; clicking the chip
- * opens the source itself. Shared by citation chips and the sources row. */
+ * can't clip it. INTERACTIVE: it stays open while the cursor is over it
+ * (the chip's close is delay-based and cancelled on entry), the URL is a
+ * real link, and long passages expand with "Learn more". */
 export function SourcePopover({
   source,
   anchor,
+  onEnter,
+  onLeave,
+  onOpen,
 }: {
   source: ApiSource;
   anchor: DOMRect;
+  onEnter?: () => void;
+  onLeave?: () => void;
+  onOpen?: (s: ApiSource) => void;
 }) {
-  const width = 340;
+  const [expanded, setExpanded] = useState(false);
   const margin = 12;
+  const viewport = typeof window !== "undefined" ? window.innerWidth : 1200;
+  const width = Math.min(340, viewport - margin * 2); // phones get full width
   const left = Math.min(
     Math.max(margin, anchor.left + anchor.width / 2 - width / 2),
-    (typeof window !== "undefined" ? window.innerWidth : 1200) - width - margin,
+    viewport - width - margin,
   );
-  const showBelow = anchor.top < 280;
+  const showBelow = anchor.top < 300;
   return (
     <div
       role="tooltip"
-      className="bs-scale-in pointer-events-none fixed z-50 overflow-hidden rounded-xl border border-border bg-surface shadow-lg"
+      onMouseEnter={onEnter}
+      onMouseLeave={onLeave}
+      className="bs-scale-in fixed z-50 overflow-hidden rounded-xl border border-border bg-surface shadow-lg"
       style={{
         width,
         left,
@@ -67,24 +78,47 @@ export function SourcePopover({
       </div>
       <div className="px-3 py-2.5">
         {source.source_type === "url" && source.source_url && (
-          <p className="mb-2 flex items-center gap-1.5 truncate font-mono text-[10px] text-accent">
+          <a
+            href={source.source_url}
+            target="_blank"
+            rel="noreferrer"
+            className="mb-2 flex items-center gap-1.5 font-mono text-[10px] text-accent hover:underline"
+          >
             <ExternalLink className="h-2.5 w-2.5 shrink-0" />
-            {source.source_url}
-          </p>
+            <span className="min-w-0 truncate">{source.source_url}</span>
+          </a>
         )}
-        <p className="line-clamp-6 text-xs leading-5 text-muted">
+        <p
+          className={cn(
+            "text-xs leading-5 text-muted",
+            expanded ? "max-h-60 overflow-y-auto" : "line-clamp-6",
+          )}
+        >
           “{source.text}”
         </p>
+        {source.text.length > 340 && (
+          <button
+            type="button"
+            onClick={() => setExpanded((e) => !e)}
+            className="mt-1.5 text-[11px] font-medium text-accent hover:underline"
+          >
+            {expanded ? "Show less" : "Learn more"}
+          </button>
+        )}
       </div>
       <div className="flex items-center justify-between border-t border-border px-3 py-1.5">
         <span className="font-mono text-[10px] text-subtle">
           relevance {source.score.toFixed(2)}
         </span>
-        <span className="flex items-center gap-1 text-[10px] font-medium text-accent">
-          click to open
+        <button
+          type="button"
+          onClick={() => onOpen?.(source)}
+          className="flex items-center gap-1 text-[10px] font-medium text-accent hover:underline"
+        >
+          open
           {source.source_type === "url" ? " the page" : ` p.${source.page}`}
           <ExternalLink className="h-2.5 w-2.5" />
-        </span>
+        </button>
       </div>
     </div>
   );
@@ -101,20 +135,31 @@ function CitationChip({
 }) {
   const ref = useRef<HTMLButtonElement>(null);
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
+  // Delay-based close so the cursor can travel from chip to popover — the
+  // card only closes once the pointer has left BOTH.
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const show = () => {
+    if (!source) return;
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    setAnchor(ref.current?.getBoundingClientRect() ?? null);
+  };
+  const cancelClose = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+  };
+  const scheduleClose = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    closeTimer.current = setTimeout(() => setAnchor(null), 180);
+  };
   return (
     <>
       <button
         ref={ref}
         type="button"
         onClick={() => source && onOpen?.(source)}
-        onMouseEnter={() =>
-          source && setAnchor(ref.current?.getBoundingClientRect() ?? null)
-        }
-        onMouseLeave={() => setAnchor(null)}
-        onFocus={() =>
-          source && setAnchor(ref.current?.getBoundingClientRect() ?? null)
-        }
-        onBlur={() => setAnchor(null)}
+        onMouseEnter={show}
+        onMouseLeave={scheduleClose}
+        onFocus={show}
+        onBlur={scheduleClose}
         aria-label={`Citation ${n}${source ? `: ${source.title}` : ""}`}
         className={cn(
           "mx-0.5 inline-flex h-4.5 min-w-4.5 translate-y-[-1px] items-center justify-center rounded-md px-1 align-middle font-mono text-[10px] font-semibold transition",
@@ -123,7 +168,15 @@ function CitationChip({
       >
         {n}
       </button>
-      {anchor && source && <SourcePopover source={source} anchor={anchor} />}
+      {anchor && source && (
+        <SourcePopover
+          source={source}
+          anchor={anchor}
+          onEnter={cancelClose}
+          onLeave={scheduleClose}
+          onOpen={onOpen}
+        />
+      )}
     </>
   );
 }

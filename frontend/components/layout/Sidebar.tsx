@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { PanelLeft, X } from "lucide-react";
-import { BrandGlyph, BrandMark } from "@/components/brand/BrandMark";
+import { X } from "lucide-react";
+import { BrandMark } from "@/components/brand/BrandMark";
 import { LockBadge } from "@/components/patterns/LockBadge";
-import { Tooltip } from "@/components/ui/Tooltip";
 import { useMounted } from "@/hooks/useMounted";
 import { cn } from "@/lib/cn";
 import {
@@ -17,36 +16,33 @@ import {
   type Role,
 } from "@/lib/nav";
 import { useSessionStore } from "@/stores/session";
-import { useUiStore } from "@/stores/ui";
+import { SIDEBAR_DEFAULT, useUiStore } from "@/stores/ui";
 
 function NavRow({
   item,
   active,
-  collapsed,
   onNavigate,
 }: {
   item: NavItem;
   active: boolean;
-  collapsed: boolean;
   onNavigate?: () => void;
 }) {
   const Icon = item.icon;
-  const row = (
+  return (
     <Link
       href={item.href}
       onClick={onNavigate}
       aria-current={active ? "page" : undefined}
       className={cn(
         "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition",
-        collapsed && "justify-center px-0 py-2.5",
         active
           ? "bg-primary font-medium text-on-primary shadow-xs"
           : "text-muted hover:bg-surface-raised hover:text-primary",
       )}
     >
       <Icon className="h-4.5 w-4.5 shrink-0" />
-      {!collapsed && <span className="truncate">{item.label}</span>}
-      {!collapsed && item.locked && (
+      <span className="truncate">{item.label}</span>
+      {item.locked && (
         <LockBadge
           compact
           className={cn("ml-auto", active && "text-on-primary/60")}
@@ -54,20 +50,14 @@ function NavRow({
       )}
     </Link>
   );
-  if (collapsed) {
-    return <Tooltip label={item.label} className="w-full">{row}</Tooltip>;
-  }
-  return row;
 }
 
 function NavList({
   role,
-  collapsed,
   pathname,
   onNavigate,
 }: {
   role: Role;
-  collapsed: boolean;
   pathname: string;
   onNavigate?: () => void;
 }) {
@@ -80,20 +70,15 @@ function NavList({
         if (items.length === 0) return null;
         return (
           <div key={group}>
-            {collapsed ? (
-              <div className="mx-2 mb-2 h-px bg-border" />
-            ) : (
-              <p className="mb-1.5 px-2.5 text-[11px] font-semibold tracking-widest text-subtle uppercase">
-                {group}
-              </p>
-            )}
+            <p className="mb-1.5 px-2.5 text-[11px] font-semibold tracking-widest text-subtle uppercase">
+              {group}
+            </p>
             <div className="space-y-0.5">
               {items.map((item) => (
                 <NavRow
                   key={item.href}
                   item={item}
                   active={isNavActive(pathname, item.href)}
-                  collapsed={collapsed}
                   onNavigate={onNavigate}
                 />
               ))}
@@ -108,51 +93,51 @@ function NavList({
 export function Sidebar() {
   const pathname = usePathname();
   const mounted = useMounted();
-  const collapsed = useUiStore((s) => s.sidebarCollapsed) && mounted;
-  const toggleSidebar = useUiStore((s) => s.toggleSidebar);
+  const width = useUiStore((s) => s.sidebarWidth);
+  const setWidth = useUiStore((s) => s.setSidebarWidth);
   const mobileNavOpen = useUiStore((s) => s.mobileNavOpen) && mounted;
   const setMobileNavOpen = useUiStore((s) => s.setMobileNavOpen);
   const storeRole = useSessionStore((s) => s.role);
   const role: Role = mounted ? storeRole : "admin";
 
+  // Drag the right edge to resize (clamped in the store). Pointer capture
+  // keeps the drag alive even when the cursor leaves the handle.
+  const startDrag = (e: React.PointerEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = width;
+    const move = (ev: PointerEvent) => setWidth(startW + ev.clientX - startX);
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+
   return (
     <>
       {/* ── Desktop ─────────────────────────────────────────────────── */}
       <aside
-        className={cn(
-          "hidden shrink-0 flex-col border-r border-border bg-canvas transition-[width] duration-200 lg:flex",
-          collapsed ? "w-16" : "w-60",
-        )}
+        style={{ width: mounted ? width : SIDEBAR_DEFAULT }}
+        className="relative hidden shrink-0 flex-col border-r border-border bg-canvas lg:flex"
       >
+        <div className="flex h-14 shrink-0 items-center border-b border-border px-4">
+          <BrandMark href="/dashboard" glyphClassName="h-7 w-7" />
+        </div>
+        <NavList role={role} pathname={pathname} />
+        {/* resize handle */}
         <div
-          className={cn(
-            "flex h-14 shrink-0 items-center border-b border-border",
-            collapsed ? "justify-center px-0" : "px-4",
-          )}
-        >
-          {collapsed ? (
-            <Link href="/dashboard" aria-label="BrainStack dashboard">
-              <BrandGlyph className="h-7 w-7" />
-            </Link>
-          ) : (
-            <BrandMark href="/dashboard" glyphClassName="h-7 w-7" />
-          )}
-        </div>
-        <NavList role={role} collapsed={collapsed} pathname={pathname} />
-        <div className="shrink-0 border-t border-border p-3">
-          <button
-            type="button"
-            onClick={toggleSidebar}
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            className={cn(
-              "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-muted transition hover:bg-surface-raised hover:text-primary",
-              collapsed && "justify-center px-0",
-            )}
-          >
-            <PanelLeft className="h-4.5 w-4.5" />
-            {!collapsed && <span>Collapse</span>}
-          </button>
-        </div>
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize sidebar"
+          onPointerDown={startDrag}
+          className="absolute inset-y-0 -right-1 z-10 w-2 cursor-col-resize transition hover:bg-accent/25 active:bg-accent/40"
+        />
       </aside>
 
       {/* ── Mobile drawer ───────────────────────────────────────────── */}
@@ -176,7 +161,6 @@ export function Sidebar() {
             </div>
             <NavList
               role={role}
-              collapsed={false}
               pathname={pathname}
               onNavigate={() => setMobileNavOpen(false)}
             />

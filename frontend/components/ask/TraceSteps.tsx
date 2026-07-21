@@ -87,9 +87,9 @@ export function TraceSteps({
                 <span aria-hidden className="w-px flex-1 bg-border" />
               )}
             </div>
-            {/* content */}
+            {/* content — label row is min-h-6 so it centers on the 24px icon */}
             <div className="min-w-0 flex-1 pb-3">
-              <div className="flex items-baseline justify-between gap-2">
+              <div className="flex min-h-6 items-center justify-between gap-2">
                 <p
                   className={cn(
                     "text-xs font-medium",
