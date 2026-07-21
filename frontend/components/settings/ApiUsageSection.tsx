@@ -81,13 +81,20 @@ export function ApiUsageSection({
             />
             <Stat
               label="Questions via API"
-              value={`${s.channel_split.api_questions} · ${apiShare}%`}
+              value={
+                filters.channel === "all"
+                  ? `${s.channel_split.api_questions} · ${apiShare}%`
+                  : String(s.channel_split.api_questions)
+              }
             />
             <Stat label="API spend" value={usd(s.channel_split.api_cost_usd)} />
           </div>
 
-          {/* app vs API, as one bar — the split, not two competing totals */}
-          <div>
+          {/* app vs API, as one bar — the split, not two competing totals.
+              Only shown for "All": once you have filtered to one channel the
+              headline already IS that channel, and a split beside it reads
+              as a contradiction. */}
+          <div hidden={filters.channel !== "all"}>
             <p className="mb-1.5 text-xs text-subtle">
               Questions: {s.channel_split.app_questions} in the app ·{" "}
               {s.channel_split.api_questions} over the API
