@@ -1,0 +1,54 @@
+# Nightly retention prune for the api_requests ledger (PHASE_11 §2).
+#
+# Why here and not on Render: the deployed API runs on Render's free tier,
+# which has no worker dynos and no cron jobs. Celery beat covers the
+# docker-compose production shape (see docker-compose.yml), but nothing in
+# that stack runs against the live Supabase database. A scheduled Action is
+# the one scheduler this project actually has.
+#
+# Requires one repository secret: DATABASE_URL (the Supabase connection
+# string). Until it is set, the job fails fast with a clear message rather
+# than silently doing nothing.
+
+name: Prune api_requests
+
+on:
+  schedule:
+    - cron: "17 3 * * *" # 03:17 UTC daily
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Report what would be deleted, delete nothing"
+        type: boolean
+        default: false
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Not backend/requirements.txt: the prune path touches config, db and
+      # models only. Installing pymupdf/fastembed/langgraph to run a DELETE
+      # would take minutes for nothing.
+      - name: Install the minimum
+        run: |
+          python -m pip install --quiet \
+            "sqlalchemy==2.0.51" "psycopg[binary]==3.3.4" \
+            "pydantic[email]==2.13.4" "pydantic-settings==2.14.2"
+
+      - name: Prune
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          JWT_SECRET: unused-by-this-job # Settings requires it; nothing signs here
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "::error::DATABASE_URL secret is not set — add it in Settings → Secrets → Actions."
+            exit 1
+          fi
+          python scripts/prune_api_requests.py ${{ inputs.dry_run && '--dry-run' || '' }}

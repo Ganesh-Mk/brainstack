@@ -82,6 +82,44 @@ guardrails**, not commerce, and they matter more without a billing system, not
 less. `/settings/models` keeps showing token prices, because attributed cost
 is an observability number here rather than an invoice.
 
+### Retention scheduling
+
+`api_requests` gains a row per `/v1` call and is the fastest-growing table the
+platform has. It is pruned to `API_REQUEST_RETENTION_DAYS` (90) nightly at
+**03:17 UTC** — an odd minute so nothing else ever lines up on the same tick.
+
+There are two schedulers because there are two environments:
+
+| Where | How | Covers |
+|---|---|---|
+| `docker compose` | a **`beat`** service running `celery -A app.worker beat`, plus a `prune_api_requests` task | the production shape |
+| the live deploy | `.github/workflows/prune-api-requests.yml` | the real Supabase database |
+
+Render's free tier has **no worker dynos and no cron jobs**, so Celery beat
+never runs against production — the scheduled GitHub Action is the only
+scheduler this project actually has. It needs one repository secret,
+`DATABASE_URL`, and fails loudly with a pointer to Settings → Secrets until
+it is set, rather than succeeding while doing nothing.
+
+Two deliberate choices in that workflow:
+
+- **It installs four packages, not `requirements.txt`.** The prune path
+  touches `config`, `db` and `models` only; pulling in pymupdf, fastembed and
+  langgraph to run one `DELETE` would cost minutes per night for nothing.
+  Verified in a clean venv with exactly those four, against production, with
+  no `.env` on disk — the CI shape.
+- **`prune_api_requests` does not autoretry**, unlike `ingest_document`. A
+  missed night is picked up by the next one, and retrying a bulk `DELETE`
+  against a table that just failed only piles work onto whatever broke.
+
+`beat` is its own compose service rather than `worker --beat`: beat only
+*enqueues*, the worker executes, and folding them together means scaling to
+two workers would fire the prune twice.
+
+Rejected calls (`401`/`403`) have a **null `tenant_id`** by design — nothing
+resolved a tenant — so tenant-scoped cleanup never removes them. Retention is
+what ages them out.
+
 ### Verified
 
 Full ASGI stack via `TestClient`: auth, scopes, revocation, expiry,
@@ -103,7 +141,8 @@ step — see "Before deploying" below.
    `b4e1c7a90d31`, `c8f3a52be104`).
 3. Smoke the real thing: mint a key in the UI, `curl /v1/me`, `/v1/search`,
    `/v1/ask`, then revoke and confirm the 401.
-4. Schedule `scripts/prune_api_requests.py` daily.
+4. ~~Schedule `scripts/prune_api_requests.py` daily.~~ **Done** — see
+   "Retention scheduling" below. One repo secret still needs adding.
 5. Add a Phase 11 production e2e battery in the established style, and update
    every e2e cleanup block to the new FK order:
    `api_requests → api_key_events → api_keys → query_traces → memories → … → tenants`.

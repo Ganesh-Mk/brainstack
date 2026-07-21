@@ -55,6 +55,19 @@ services:
     depends_on:
       backend: { condition: service_started }
 
+  # The scheduler (Phase 11). Separate from the worker on purpose: beat only
+  # ENQUEUES, the worker executes. Running beat inside a worker means two
+  # workers would each fire the nightly prune.
+  beat:
+    build: ./backend
+    command: celery -A app.worker beat --loglevel=info
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://brainstack:brainstack@postgres:5432/brainstack
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      worker: { condition: service_started }
+
   company:
     build: ./company
     env_file: .env # provides MCP_SHARED_SECRET
