@@ -54,13 +54,14 @@ export function ConnectionsView() {
   const conn = allowed ? data : null;
   const connected = Boolean(conn?.connected);
 
-  // If discovery came back empty (service napping), retry once, hard —
-  // the wake ping usually brings it up within a minute.
-  const retried = useRef(false);
+  // If discovery came back empty (service napping), keep retrying hard —
+  // each retry's wake ping blocks up to 60s server-side, and a Render cold
+  // start can outlast one ping, so three attempts cover the worst case.
+  const retries = useRef(0);
   useEffect(() => {
-    if (!conn || connected || !conn.configured || retried.current) return;
-    retried.current = true;
-    const t = setTimeout(() => void refreshHard(), 1500);
+    if (!conn || connected || !conn.configured || retries.current >= 3) return;
+    retries.current += 1;
+    const t = setTimeout(() => void refreshHard(), 3000);
     return () => clearTimeout(t);
   }, [conn, connected, refreshHard]);
 
