@@ -723,3 +723,115 @@ def test_prune_drops_only_old_rows(client, fake_retrieval):
     assert apiusage.prune(session, 90) == 1
     assert session.query(ApiRequest).count() == 1
     session.close()
+
+
+# ── analytics filters (Phase 11f) ────────────────────────────────────────────
+
+
+def _seed_trace(tenant_id, user_id, *, channel, environment, status="ok", cost=0.01, days_ago=0):
+    from datetime import datetime, timedelta, timezone
+
+    import app.db as app_db
+    from app.models import QueryTrace
+
+    session = app_db.SessionLocal()
+    t = QueryTrace(
+        tenant_id=tenant_id, user_id=user_id, question="q", status=status,
+        latency_ms=1000, first_token_ms=200, tool_kinds="knowledge",
+        source_count=1, input_tokens=100, output_tokens=10, cost_usd=cost,
+        model="m", channel=channel, environment=environment,
+    )
+    session.add(t)
+    session.commit()
+    if days_ago:
+        t.created_at = datetime.now(timezone.utc) - timedelta(days=days_ago)
+        session.commit()
+    session.close()
+
+
+def _ids(client, token):
+    me = client.get("/auth/me", headers=auth_header(token)).json()
+    return uuid.UUID(me["tenant"]["id"]), uuid.UUID(me["user"]["id"])
+
+
+def test_analytics_excludes_test_traffic_by_default(client):
+    """The create-key modal promises a test key's traffic stays out of your
+    quality numbers. This is the test that makes that claim true."""
+    token = admin_token(client)
+    tenant, user = _ids(client, token)
+    _seed_trace(tenant, user, channel="app", environment="app")
+    _seed_trace(tenant, user, channel="api", environment="live")
+    _seed_trace(tenant, user, channel="api", environment="test")
+
+    body = client.get("/stats/analytics", headers=auth_header(token)).json()
+    assert body["totals"]["questions"] == 2  # test one excluded
+    assert body["filters"] == {"days": 14, "channel": "all", "include_test": False}
+
+    body = client.get(
+        "/stats/analytics?include_test=true", headers=auth_header(token)
+    ).json()
+    assert body["totals"]["questions"] == 3
+
+
+def test_analytics_channel_filter(client):
+    token = admin_token(client)
+    tenant, user = _ids(client, token)
+    _seed_trace(tenant, user, channel="app", environment="app")
+    _seed_trace(tenant, user, channel="app", environment="app")
+    _seed_trace(tenant, user, channel="api", environment="live")
+
+    get = lambda q: client.get(f"/stats/analytics?{q}", headers=auth_header(token)).json()
+    assert get("channel=all")["totals"]["questions"] == 3
+    assert get("channel=app")["totals"]["questions"] == 2
+    assert get("channel=api")["totals"]["questions"] == 1
+
+
+def test_analytics_window_filter(client):
+    token = admin_token(client)
+    tenant, user = _ids(client, token)
+    _seed_trace(tenant, user, channel="app", environment="app")
+    _seed_trace(tenant, user, channel="app", environment="app", days_ago=20)
+
+    get = lambda d: client.get(f"/stats/analytics?days={d}", headers=auth_header(token)).json()
+    assert get(7)["totals"]["questions"] == 1
+    assert get(30)["totals"]["questions"] == 2
+    assert get(30)["window_days"] == 30
+
+
+def test_analytics_rejects_unsupported_filters(client):
+    token = admin_token(client)
+    h = auth_header(token)
+    # An arbitrary window would silently return a partial answer, because the
+    # aggregate reads only the most recent TRACE_WINDOW rows.
+    assert client.get("/stats/analytics?days=3650", headers=h).status_code == 422
+    assert client.get("/stats/analytics?channel=carrier-pigeon", headers=h).status_code == 422
+
+
+def test_channel_split_agrees_with_the_headline_count(client):
+    """The two cards sit on the same screen; 29 + 40 must equal 66."""
+    token = admin_token(client)
+    tenant, user = _ids(client, token)
+    for _ in range(3):
+        _seed_trace(tenant, user, channel="app", environment="app")
+    for _ in range(2):
+        _seed_trace(tenant, user, channel="api", environment="live")
+    _seed_trace(tenant, user, channel="api", environment="live", status="error")
+
+    analytics = client.get("/stats/analytics", headers=auth_header(token)).json()
+    api = client.get("/stats/api", headers=auth_header(token)).json()
+    split = api["channel_split"]
+    assert split["app_questions"] + split["api_questions"] == analytics["totals"]["questions"]
+
+
+def test_stats_api_honours_include_test(client):
+    token = admin_token(client)
+    tenant, user = _ids(client, token)
+    _seed_trace(tenant, user, channel="api", environment="live")
+    _seed_trace(tenant, user, channel="api", environment="test")
+
+    h = auth_header(token)
+    assert client.get("/stats/api", headers=h).json()["channel_split"]["api_questions"] == 1
+    assert (
+        client.get("/stats/api?include_test=true", headers=h)
+        .json()["channel_split"]["api_questions"] == 2
+    )

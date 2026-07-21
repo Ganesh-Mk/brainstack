@@ -91,6 +91,7 @@ export const DEMO_DASHBOARD: ApiDashboardStats = {
 
 export const DEMO_ANALYTICS: ApiAnalytics = {
   window_days: 14,
+  filters: { days: 14, channel: "all", include_test: false },
   totals: { questions: 87, errors: 2, cost_usd: 1.84, input_tokens: 912_000, output_tokens: 64_000 },
   latency_ms: { p50: 4800, p95: 11200 },
   first_token_ms: { p50: 2100, p95: 4900 },
@@ -111,6 +112,7 @@ export const DEMO_ANALYTICS: ApiAnalytics = {
 
 export const DEMO_API_STATS: ApiApiStats = {
   window_days: 14,
+  include_test: false,
   totals: { requests: 1284, errors: 9, questions: 214, cost_usd: 2.41 },
   channel_split: {
     app_questions: 87,

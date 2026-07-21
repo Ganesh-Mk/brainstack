@@ -143,7 +143,9 @@ def key_detail(db: Session, key: ApiKey, days: int = 14) -> dict:
     }
 
 
-def tenant_api_stats(db: Session, tenant_id: uuid.UUID, days: int = 14) -> dict:
+def tenant_api_stats(
+    db: Session, tenant_id: uuid.UUID, days: int = 14, include_test: bool = False
+) -> dict:
     """The Analytics page's "Programmatic access" section."""
     since = _since(days)
 
@@ -153,6 +155,14 @@ def tenant_api_stats(db: Session, tenant_id: uuid.UUID, days: int = 14) -> dict:
     ).all()
     traces = _traces_since(db, tenant_id, since)
 
+    if not include_test:
+        rows = [r for r in rows if r.environment != "test"]
+        traces = [t for t in traces if t.environment != "test"]
+
+    # `ok` only, to match /stats/analytics. Counting errors here made the
+    # channel split (29 app + 40 api) disagree with the headline question
+    # count (66) on the very same screen.
+    traces = [t for t in traces if t.status == "ok"]
     api_traces = [t for t in traces if t.channel == "api"]
     app_traces = [t for t in traces if t.channel != "api"]
 
@@ -184,6 +194,7 @@ def tenant_api_stats(db: Session, tenant_id: uuid.UUID, days: int = 14) -> dict:
 
     return {
         "window_days": days,
+        "include_test": include_test,
         "totals": {
             "requests": len(rows),
             "errors": sum(1 for r in rows if r.status_code >= 400),

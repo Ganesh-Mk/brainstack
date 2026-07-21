@@ -2,7 +2,12 @@
 
 import { useCallback } from "react";
 import { Terminal } from "lucide-react";
-import { api, type ApiApiStats } from "@/lib/api";
+import {
+  api,
+  DEFAULT_ANALYTICS_FILTERS,
+  type AnalyticsFilters,
+  type ApiApiStats,
+} from "@/lib/api";
 import { DEMO_API_STATS, useStatsResource } from "@/hooks/useStats";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
@@ -23,8 +28,15 @@ const STATUS_TONE: Record<string, string> = {
  * ledgers are joined, never summed twice — which is why the app/API split
  * below always adds up to the workspace total shown above it.
  */
-export function ApiUsageSection() {
-  const fetcher = useCallback((token: string) => api.statsApi(token), []);
+export function ApiUsageSection({
+  filters = DEFAULT_ANALYTICS_FILTERS,
+}: {
+  filters?: AnalyticsFilters;
+}) {
+  const fetcher = useCallback(
+    (token: string) => api.statsApi(token, filters),
+    [filters],
+  );
   const { data, error, loading, demo } = useStatsResource<ApiApiStats>(
     fetcher,
     DEMO_API_STATS,
@@ -54,7 +66,8 @@ export function ApiUsageSection() {
 
       {s.totals.requests === 0 ? (
         <p className="mt-4 text-sm text-muted">
-          No API calls in the last {s.window_days} days. Create a key in
+          No API calls in the last {s.window_days} days
+          {!s.include_test && " (excluding test keys)"}. Create a key in
           Settings → API keys to call this workspace from your own systems.
         </p>
       ) : (

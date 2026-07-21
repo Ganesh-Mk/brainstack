@@ -15,7 +15,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -34,6 +34,42 @@ from app.services import apiusage
 router = APIRouter(prefix="/stats", tags=["stats"])
 
 TRACE_WINDOW = 1000  # recent rows used for latency/cost aggregates
+
+# Filters (Phase 11f). Windows are a fixed set rather than a free integer:
+# the aggregate reads the most recent TRACE_WINDOW rows, so an arbitrary
+# `days=3650` would silently return a partial answer that looks complete.
+WINDOWS = (7, 14, 30)
+CHANNELS = ("all", "app", "api")
+
+
+def _apply_filters(
+    rows: list[QueryTrace], channel: str, include_test: bool
+) -> list[QueryTrace]:
+    """Channel + environment filtering, shared by every stats read.
+
+    include_test defaults to False everywhere, which is what makes the
+    promise on the create-key modal true: a test key's traffic is excluded
+    from the workspace's quality and cost numbers unless you ask for it.
+    """
+    if channel in ("app", "api"):
+        rows = [r for r in rows if r.channel == channel]
+    if not include_test:
+        rows = [r for r in rows if r.environment != "test"]
+    return rows
+
+
+def _filter_params(days: int, channel: str, include_test: bool) -> dict:
+    if days not in WINDOWS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"days must be one of {', '.join(str(w) for w in WINDOWS)}",
+        )
+    if channel not in CHANNELS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"channel must be one of {', '.join(CHANNELS)}",
+        )
+    return {"days": days, "channel": channel, "include_test": include_test}
 
 
 def _pct(values: list[int], p: float) -> int | None:
@@ -127,10 +163,16 @@ def _tool_usage(rows: list[QueryTrace]) -> dict:
 
 @router.get("/analytics")
 def analytics(
+    days: int = Query(14),
+    channel: str = Query("all"),
+    include_test: bool = Query(False),
     current: CurrentUser = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> dict:
-    rows = _recent_traces(db, current.tenant_id, days=14)
+    filters = _filter_params(days, channel, include_test)
+    rows = _apply_filters(
+        _recent_traces(db, current.tenant_id, days=days), channel, include_test
+    )
     ok = [r for r in rows if r.status == "ok"]
     lat = [r.latency_ms for r in ok if r.latency_ms]
     ftl = [r.first_token_ms for r in ok if r.first_token_ms]
@@ -148,10 +190,10 @@ def analytics(
                 d["latencies"].append(r.latency_ms)
         else:
             d["errors"] += 1
-    days = []
+    series = []  # NOT `days` — that is the window parameter now
     for day in sorted(per_day):
         d = per_day[day]
-        days.append(
+        series.append(
             {
                 "date": d["date"],
                 "questions": d["questions"],
@@ -172,7 +214,8 @@ def analytics(
     top = sorted(counts.items(), key=lambda p: -p[1])[:8]
 
     return {
-        "window_days": 14,
+        "window_days": days,
+        "filters": filters,
         "totals": {
             "questions": len(ok),
             "errors": len(rows) - len(ok),
@@ -182,7 +225,7 @@ def analytics(
         },
         "latency_ms": {"p50": _pct(lat, 0.50), "p95": _pct(lat, 0.95)},
         "first_token_ms": {"p50": _pct(ftl, 0.50), "p95": _pct(ftl, 0.95)},
-        "per_day": days,
+        "per_day": series,
         "tool_usage": _tool_usage(ok),
         "top_questions": [{"question": q, "count": c} for q, c in top],
     }
@@ -190,6 +233,8 @@ def analytics(
 
 @router.get("/api")
 def api_stats(
+    days: int = Query(14),
+    include_test: bool = Query(False),
     current: CurrentUser = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> dict:
@@ -197,7 +242,10 @@ def api_stats(
 
     Request counts come from api_requests, spend from query_traces — the two
     ledgers, joined rather than summed twice (PHASE_11 §1.6)."""
-    return apiusage.tenant_api_stats(db, current.tenant_id, days=14)
+    _filter_params(days, "all", include_test)
+    return apiusage.tenant_api_stats(
+        db, current.tenant_id, days=days, include_test=include_test
+    )
 
 
 @router.get("/traces")

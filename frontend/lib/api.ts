@@ -146,8 +146,21 @@ export type ApiDashboardStats = {
   }[];
 };
 
+export type AnalyticsFilters = {
+  days: 7 | 14 | 30;
+  channel: "all" | "app" | "api";
+  include_test: boolean;
+};
+
+export const DEFAULT_ANALYTICS_FILTERS: AnalyticsFilters = {
+  days: 14,
+  channel: "all",
+  include_test: false,
+};
+
 export type ApiAnalytics = {
   window_days: number;
+  filters: AnalyticsFilters;
   totals: {
     questions: number;
     errors: number;
@@ -266,6 +279,7 @@ export type ApiKeyUsage = {
 
 export type ApiApiStats = {
   window_days: number;
+  include_test: boolean;
   totals: {
     requests: number;
     errors: number;
@@ -574,8 +588,11 @@ export const api = {
   statsDashboard: (token: string) =>
     request<ApiDashboardStats>("/stats/dashboard", { token }),
 
-  statsAnalytics: (token: string) =>
-    request<ApiAnalytics>("/stats/analytics", { token }),
+  statsAnalytics: (token: string, f: AnalyticsFilters = DEFAULT_ANALYTICS_FILTERS) =>
+    request<ApiAnalytics>(
+      `/stats/analytics?days=${f.days}&channel=${f.channel}&include_test=${f.include_test}`,
+      { token },
+    ),
 
   statsTraces: (token: string) =>
     request<{ traces: ApiQueryTrace[] }>("/stats/traces", { token }),
@@ -583,7 +600,11 @@ export const api = {
   statsEvals: (token: string) =>
     request<{ runs: ApiEvalRun[] }>("/stats/evals", { token }),
 
-  statsApi: (token: string) => request<ApiApiStats>("/stats/api", { token }),
+  statsApi: (token: string, f: AnalyticsFilters = DEFAULT_ANALYTICS_FILTERS) =>
+    request<ApiApiStats>(
+      `/stats/api?days=${f.days}&include_test=${f.include_test}`,
+      { token },
+    ),
 
   // ── API keys (Phase 11) ──────────────────────────────────────────────────
 

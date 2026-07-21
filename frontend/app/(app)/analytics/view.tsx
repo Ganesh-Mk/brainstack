@@ -1,8 +1,14 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { ChartLine, Clock, DollarSign, MessageSquare, RefreshCw, Zap } from "lucide-react";
-import { api, type ApiAnalytics } from "@/lib/api";
+import {
+  api,
+  DEFAULT_ANALYTICS_FILTERS,
+  type AnalyticsFilters,
+  type ApiAnalytics,
+} from "@/lib/api";
+import { AnalyticsFilterBar } from "@/components/settings/AnalyticsFilterBar";
 import { DEMO_ANALYTICS, useStatsResource } from "@/hooks/useStats";
 import { useMounted } from "@/hooks/useMounted";
 import { AdminsOnly } from "@/components/patterns/ManagersOnly";
@@ -19,7 +25,14 @@ const fmtMs = (ms: number | null) =>
 
 export function AnalyticsView() {
   const mounted = useMounted();
-  const fetcher = useCallback((token: string) => api.statsAnalytics(token), []);
+  const [filters, setFilters] = useState<AnalyticsFilters>(
+    DEFAULT_ANALYTICS_FILTERS,
+  );
+  // Keyed on the filters so the hook refetches whenever they change.
+  const fetcher = useCallback(
+    (token: string) => api.statsAnalytics(token, filters),
+    [filters],
+  );
   const { data, error, loading, demo, allowed, refresh, refreshing } =
     useStatsResource<ApiAnalytics>(fetcher, DEMO_ANALYTICS, true);
 
@@ -56,6 +69,7 @@ export function AnalyticsView() {
     );
   });
   const maxQ = Math.max(1, ...days.map((d) => d.questions + d.errors));
+  const labelStep = Math.max(1, Math.ceil(days.length / 7));
 
   return (
     <div className="bs-fade-up w-full max-w-6xl space-y-6">
@@ -73,6 +87,14 @@ export function AnalyticsView() {
           ) : undefined
         }
       />
+
+      {allowed && (
+        <AnalyticsFilterBar
+          value={filters}
+          onChange={setFilters}
+          disabled={demo}
+        />
+      )}
 
       {!allowed ? (
         <AdminsOnly what="Workspace analytics" />
@@ -161,7 +183,12 @@ export function AnalyticsView() {
                         key={d.date}
                         className="flex-1 text-center font-mono text-[9px] text-subtle"
                       >
-                        {i % 2 === 0 ? d.date.slice(5).replace("-", "/") : ""}
+                        {/* ~7 labels whatever the window: every day at 7d,
+                            every other at 14d, every fifth at 30d. Anchored
+                            to the end so the newest day is always labelled. */}
+                        {(days.length - 1 - i) % labelStep === 0
+                          ? d.date.slice(5).replace("-", "/")
+                          : ""}
                       </span>
                     ))}
                   </div>
@@ -195,7 +222,8 @@ export function AnalyticsView() {
             </Card>
           </div>
 
-          <ApiUsageSection />
+          {/* Filtering to app-only traffic makes an API panel a non-sequitur. */}
+          {filters.channel !== "app" && <ApiUsageSection filters={filters} />}
         </>
       )}
     </div>
