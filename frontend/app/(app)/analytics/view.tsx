@@ -7,6 +7,7 @@ import { DEMO_ANALYTICS, useStatsResource } from "@/hooks/useStats";
 import { useMounted } from "@/hooks/useMounted";
 import { AdminsOnly } from "@/components/patterns/ManagersOnly";
 import { PageHeader } from "@/components/patterns/PageHeader";
+import { ApiUsageSection } from "@/components/settings/ApiUsageSection";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -193,6 +194,8 @@ export function AnalyticsView() {
               )}
             </Card>
           </div>
+
+          <ApiUsageSection />
         </>
       )}
     </div>

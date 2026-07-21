@@ -22,12 +22,14 @@ from sqlalchemy.orm import Session
 from app.core.deps import CurrentUser, get_current_user, require_admin
 from app.db import get_db
 from app.models import (
+    ApiKey,
     Conversation,
     Document,
     EvalRun,
     Memory,
     QueryTrace,
 )
+from app.services import apiusage
 
 router = APIRouter(prefix="/stats", tags=["stats"])
 
@@ -186,17 +188,37 @@ def analytics(
     }
 
 
+@router.get("/api")
+def api_stats(
+    current: CurrentUser = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> dict:
+    """The Analytics page's "Programmatic access" section (Phase 11f).
+
+    Request counts come from api_requests, spend from query_traces — the two
+    ledgers, joined rather than summed twice (PHASE_11 §1.6)."""
+    return apiusage.tenant_api_stats(db, current.tenant_id, days=14)
+
+
 @router.get("/traces")
 def traces(
     current: CurrentUser = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> dict:
-    rows = db.scalars(
-        select(QueryTrace)
-        .where(QueryTrace.tenant_id == current.tenant_id)
-        .order_by(QueryTrace.created_at.desc())
-        .limit(50)
+    rows = list(
+        db.scalars(
+            select(QueryTrace)
+            .where(QueryTrace.tenant_id == current.tenant_id)
+            .order_by(QueryTrace.created_at.desc())
+            .limit(50)
+        )
     )
+    key_names = {
+        k.id: k.name
+        for k in db.scalars(
+            select(ApiKey).where(ApiKey.tenant_id == current.tenant_id)
+        )
+    }
     return {
         "traces": [
             {
@@ -211,6 +233,11 @@ def traces(
                 "output_tokens": r.output_tokens,
                 "cost_usd": r.cost_usd,
                 "model": r.model,
+                # Phase 11: who asked — the app, or a key over /v1.
+                "channel": r.channel,
+                "environment": r.environment,
+                "api_key_id": str(r.api_key_id) if r.api_key_id else None,
+                "api_key_name": key_names.get(r.api_key_id),
                 "created_at": r.created_at.isoformat() if r.created_at else None,
             }
             for r in rows

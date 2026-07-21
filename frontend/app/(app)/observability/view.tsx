@@ -71,6 +71,7 @@ export function ObservabilityView() {
           <THead>
             <tr>
               <TH>Question</TH>
+              <TH>Source</TH>
               <TH>Tools</TH>
               <TH className="text-right">Sources</TH>
               <TH className="text-right">First token</TH>
@@ -91,6 +92,19 @@ export function ObservabilityView() {
                     <Badge variant="danger" className="mt-1">
                       failed
                     </Badge>
+                  )}
+                </TD>
+                <TD>
+                  {t.channel === "api" ? (
+                    <span className="flex flex-col gap-0.5">
+                      <Badge variant="accent">API</Badge>
+                      <span className="truncate text-[11px] text-subtle">
+                        {t.api_key_name ?? "key"}
+                        {t.environment === "test" ? " · test" : ""}
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="text-xs text-subtle">app</span>
                   )}
                 </TD>
                 <TD>

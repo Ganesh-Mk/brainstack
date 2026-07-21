@@ -17,7 +17,6 @@ import {
   ChartColumn,
   ChartLine,
   ClipboardCheck,
-  CreditCard,
   KeyRound,
   LayoutDashboard,
   Library,
@@ -261,19 +260,10 @@ export const SETTINGS_TABS: SettingsTab[] = [
     blurb: "Accent and canvas — restyle the whole product live.",
   },
   {
-    label: "Billing",
-    href: "/settings/billing",
-    icon: CreditCard,
-    locked: true,
-    unlocksIn: "Later · after launch",
-    blurb: "Plan, usage and invoices.",
-  },
-  {
     label: "API keys",
     href: "/settings/api-keys",
     icon: KeyRound,
-    locked: true,
-    unlocksIn: "Later · after launch",
+    locked: false,
     blurb: "Programmatic access to your workspace.",
   },
   {
@@ -291,9 +281,8 @@ export const MARKETING_LINKS: {
   soon?: boolean;
 }[] = [
   { label: "Features", href: "/features" },
-  { label: "Pricing", href: "/pricing" },
   { label: "Security", href: "/security" },
-  { label: "Docs", href: "/docs", soon: true },
+  { label: "Docs", href: "/docs" }, // the API reference is live (Phase 11g)
   { label: "Blog", href: "/blog", soon: true },
 ];
 

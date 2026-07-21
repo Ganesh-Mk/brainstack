@@ -81,6 +81,14 @@ class Settings(BaseSettings):
     # scales workers, inspectable queue (the guide's 'why', written down).
     INGEST_MODE: str = "inline"  # inline | celery
 
+    # Public API & API keys (Phase 11). Limits/caps are carried on every key
+    # row from 11a; they start being ENFORCED in 11d.
+    API_V1_ENABLED: bool = True  # kill switch for the whole public surface
+    API_KEY_DEFAULT_RATE_LIMIT_PER_HOUR: int = 120
+    API_KEY_MAX_PER_TENANT: int = 20
+    API_REQUEST_RETENTION_DAYS: int = 90
+    API_KEY_CACHE_TTL: int = 60  # seconds; Redis lookup cache
+
     # The agent (LangGraph)
     TAVILY_API_KEY: str = ""
     LLM_MODEL_AGENT: str = "claude-haiku-4-5"  # env-swap up for demos

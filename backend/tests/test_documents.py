@@ -74,19 +74,22 @@ def fakes(client, monkeypatch):
     """Patch storage / vector / embedding services everywhere they're used,
     and run background tasks inline (TestClient runs them after the response,
     synchronously — perfect for asserting on final state)."""
-    from app.routers import documents as router_mod
+    # Patch the service modules themselves, not a router's reference to them:
+    # every importer (routers, services/library, the ingestion pipeline) holds
+    # the same module object, so this covers all of them and survives code
+    # moving between layers.
     from app.services import embeddings as embeddings_mod
+    from app.services import storage as storage_mod
+    from app.services import vectorstore as vectorstore_mod
 
     store, vectors = FakeStorage(), FakeVectors()
 
-    for target in (ingestion_mod.storage, router_mod.storage):
-        monkeypatch.setattr(target, "upload_pdf", store.upload_pdf, raising=True)
-        monkeypatch.setattr(target, "download", store.download, raising=True)
-        monkeypatch.setattr(target, "delete_object", store.delete_object, raising=True)
+    monkeypatch.setattr(storage_mod, "upload_pdf", store.upload_pdf, raising=True)
+    monkeypatch.setattr(storage_mod, "download", store.download, raising=True)
+    monkeypatch.setattr(storage_mod, "delete_object", store.delete_object, raising=True)
 
-    for target in (ingestion_mod.vectorstore, router_mod.vectorstore):
-        monkeypatch.setattr(target, "upsert", vectors.upsert, raising=True)
-        monkeypatch.setattr(target, "delete_ids", vectors.delete_ids, raising=True)
+    monkeypatch.setattr(vectorstore_mod, "upsert", vectors.upsert, raising=True)
+    monkeypatch.setattr(vectorstore_mod, "delete_ids", vectors.delete_ids, raising=True)
 
     # Deterministic "embeddings" without downloading a model.
     calls = {"embedded_texts": 0}

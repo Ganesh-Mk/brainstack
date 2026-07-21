@@ -10,7 +10,6 @@ const COLUMNS: {
     title: "Product",
     links: [
       { label: "Features", href: "/features" },
-      { label: "Pricing", href: "/pricing" },
       { label: "Security", href: "/security" },
     ],
   },
@@ -24,7 +23,7 @@ const COLUMNS: {
   {
     title: "Resources",
     links: [
-      { label: "Docs", href: "/docs", soon: true },
+      { label: "Docs", href: "/docs" },
       { label: "Blog", href: "/blog", soon: true },
     ],
   },

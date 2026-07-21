@@ -43,24 +43,43 @@ def _redis():
     return _client
 
 
-def check(tenant_id) -> None:
-    """Raises 429 when the tenant is over this hour's ask budget."""
-    settings = get_settings()
-    limit = settings.RATE_LIMIT_ASKS_PER_HOUR
+def window_reset() -> int:
+    """Unix time at which the current fixed hour window rolls over."""
+    return (int(time.time() // 3600) + 1) * 3600
+
+
+def hit(bucket: str, limit: int) -> tuple[int, int] | None:
+    """Count one use of `bucket`. Returns (used, limit), or None when limiting
+    is inactive (no limit configured, no Redis, or Redis erroring).
+
+    Never raises — callers decide what a breach means. Phase 11 added the
+    second dimension: the app route buckets per tenant, /v1 buckets per key
+    AND per tenant, so one runaway key cannot eat the workspace's budget.
+    """
     if limit <= 0:
-        return
+        return None
     client = _redis()
     if client is None:
-        return
+        return None
     window = int(time.time() // 3600)
-    key = f"rl:ask:{tenant_id}:{window}"
+    key = f"rl:{bucket}:{window}"
     try:
         count = client.incr(key)
         if count == 1:
             client.expire(key, 3700)
     except Exception:
         log.warning("rate limit check failed — allowing request", exc_info=True)
+        return None
+    return count, limit
+
+
+def check(tenant_id) -> None:
+    """Raises 429 when the tenant is over this hour's ask budget."""
+    limit = get_settings().RATE_LIMIT_ASKS_PER_HOUR
+    result = hit(f"ask:{tenant_id}", limit)
+    if result is None:
         return
+    count, limit = result
     if count > limit:
         minutes = 60 - int(time.time() % 3600) // 60
         raise HTTPException(

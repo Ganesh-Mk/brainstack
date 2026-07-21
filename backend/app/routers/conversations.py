@@ -37,7 +37,8 @@ from app.schemas.chat import (
     SourceOut,
     TraceStep,
 )
-from app.services import agent, chat, memory
+from app.services import agent, chat, memory, traces
+from app.services import ask as ask_service  # the route below is named `ask`
 
 log = logging.getLogger("chat")
 
@@ -176,18 +177,7 @@ def _sse(event: str, data: object) -> str:
     return f"event: {event}\ndata: {json.dumps(data)}\n\n"
 
 
-def _write_trace(**fields) -> None:
-    """One query_traces row per ask (Phase 9) — its own session, because the
-    error path runs after a rollback. Observability must never break answering."""
-    try:
-        session = app_db.SessionLocal()
-        try:
-            session.add(QueryTrace(**fields))
-            session.commit()
-        finally:
-            session.close()
-    except Exception:
-        log.warning("query trace write failed", exc_info=True)
+_write_trace = traces.write  # one row per ask; shared with /v1/ask (Phase 11)
 
 
 @router.post("/{conversation_id}/messages")
@@ -244,94 +234,43 @@ def ask(
                 memories=memories,
             )
 
-            answer_parts: list[str] = []
-            sources: list[dict] = []
-            trace: list[dict] = []
-            draft_started = None
-            first_token_at = None
-            in_tokens = out_tokens = 0  # approximate — summed per model call
+            # The graph loop itself lives in services/ask.py — shared with
+            # /v1/ask so there is exactly one implementation (PHASE_11 §1.1).
+            events = ask_service.run(state)
+            try:
+                while True:
+                    event, payload = next(events)
+                    yield _sse(event, payload)
+            except StopIteration as stop:
+                outcome: ask_service.AskOutcome = stop.value
 
-            for mode, payload in agent.get_graph().stream(
-                state, stream_mode=["messages", "custom"]
-            ):
-                if mode == "custom":
-                    if "trace" in payload:
-                        trace.append(payload["trace"])
-                        yield _sse("trace", payload["trace"])
-                    if "sources" in payload:
-                        sources = payload["sources"]
-                        yield _sse("sources", sources)
-                    if payload.get("reset"):
-                        # Reflection rejected the draft: clear it everywhere —
-                        # the retry streams fresh, only the final draft persists.
-                        answer_parts.clear()
-                        draft_started = None
-                        yield _sse("reset", {})
-                elif mode == "messages":
-                    chunk, meta = payload
-                    if meta.get("langgraph_node") != "agent":
-                        continue
-                    um = getattr(chunk, "usage_metadata", None) or {}
-                    if um.get("input_tokens"):
-                        in_tokens += um["input_tokens"]
-                    if (getattr(chunk, "response_metadata", None) or {}).get(
-                        "stop_reason"
-                    ):
-                        out_tokens += um.get("output_tokens", 0)
-                    text = agent.chunk_text(chunk)
-                    if text:
-                        if first_token_at is None:
-                            first_token_at = time.perf_counter()
-                        if draft_started is None:
-                            draft_started = time.perf_counter()
-                        answer_parts.append(text)
-                        yield _sse("delta", {"text": text})
-
-            answer = "".join(answer_parts).strip()
-            if not answer:
-                raise RuntimeError("agent produced no answer text")
-
-            # Close the trace with the drafting step (persisted + sent).
-            drafting = {
-                "n": len(trace) + 1,
-                "kind": "drafting",
-                "label": "Drafting the answer",
-                "ms": round(
-                    (time.perf_counter() - (draft_started or t_start)) * 1000
-                ),
-            }
-            trace.append(drafting)
-            yield _sse("trace", drafting)
-
-            ids = _persist(session, question, answer, sources, trace)
-            yield _sse("done", {**ids, "trace": trace})
+            ids = _persist(
+                session, question, outcome.answer, outcome.sources, outcome.trace
+            )
+            yield _sse("done", {**ids, "trace": outcome.trace})
 
             # Phase 9 observability + Phase 8 housekeeping AFTER the user has
             # their answer — each swallows its own failures.
-            settings = get_settings()
-            cost = (
-                in_tokens * settings.PRICE_INPUT_PER_MTOK
-                + out_tokens * settings.PRICE_OUTPUT_PER_MTOK
-            ) / 1_000_000
             _write_trace(
                 tenant_id=tenant_id,
                 user_id=user_id,
                 conversation_id=convo_id,
                 question=question,
                 status="ok",
-                latency_ms=round((time.perf_counter() - t_start) * 1000),
-                first_token_ms=(
-                    round((first_token_at - t_start) * 1000) if first_token_at else None
+                latency_ms=outcome.latency_ms,
+                first_token_ms=outcome.first_token_ms,
+                tool_kinds=",".join(
+                    dict.fromkeys(t["kind"] for t in outcome.trace)
                 ),
-                tool_kinds=",".join(dict.fromkeys(t["kind"] for t in trace)),
-                source_count=len(sources),
-                input_tokens=in_tokens or None,
-                output_tokens=out_tokens or None,
-                cost_usd=round(cost, 6) if (in_tokens or out_tokens) else None,
-                model=settings.LLM_MODEL_AGENT,
+                source_count=len(outcome.sources),
+                input_tokens=outcome.input_tokens or None,
+                output_tokens=outcome.output_tokens or None,
+                cost_usd=outcome.cost_usd,
+                model=outcome.model,
+                channel="app",
             )
             memory.extract_and_store(
-                session, tenant_id, user_id, convo_id, question, answer
+                session, tenant_id, user_id, convo_id, question, outcome.answer
             )
             memory.maybe_update_summary(session, convo_id)
 

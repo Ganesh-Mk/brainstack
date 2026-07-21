@@ -180,7 +180,113 @@ export type ApiQueryTrace = {
   output_tokens: number | null;
   cost_usd: number | null;
   model: string;
+  /** Phase 11: who asked — the product, or a key over /v1. */
+  channel: "app" | "api";
+  environment: string;
+  api_key_id: string | null;
+  api_key_name: string | null;
   created_at: string | null;
+};
+
+// ── API keys / programmatic access (Phase 11) ──────────────────────────────
+
+export type ApiKeyEnvironment = "live" | "test";
+
+export type ApiApiKey = {
+  id: string;
+  name: string;
+  environment: ApiKeyEnvironment;
+  prefix: string;
+  last4: string;
+  masked: string;
+  scopes: string[];
+  created_by_user_id: string;
+  created_at: string;
+  expires_at: string | null;
+  last_used_at: string | null;
+  revoked_at: string | null;
+  rate_limit_per_hour: number;
+  monthly_cost_cap_usd: number | null;
+  active: boolean;
+  requests_7d: number;
+  errors_7d: number;
+  cost_usd_7d: number;
+};
+
+/** The one and only response that carries the plaintext key. */
+export type ApiApiKeyCreated = ApiApiKey & { key: string };
+
+export type ApiKeyCatalog = {
+  scopes: { scope: string; description: string }[];
+  environments: string[];
+  default_scopes: string[];
+  default_rate_limit_per_hour: number;
+  max_keys_per_tenant: number;
+};
+
+export type ApiKeyEvent = {
+  id: string;
+  api_key_id: string;
+  actor_user_id: string | null;
+  action: string;
+  detail: string | null;
+  created_at: string;
+};
+
+export type ApiKeyUsage = {
+  window_days: number;
+  totals: {
+    requests: number;
+    errors: number;
+    questions: number;
+    cost_usd: number;
+    input_tokens: number;
+    output_tokens: number;
+  };
+  per_day: { date: string; requests: number; errors: number }[];
+  endpoints: {
+    route: string;
+    requests: number;
+    errors: number;
+    p50_ms: number | null;
+  }[];
+  status_breakdown: Record<string, number>;
+  recent: {
+    request_id: string;
+    method: string;
+    route: string;
+    status_code: number;
+    error_code: string | null;
+    latency_ms: number;
+    created_at: string | null;
+  }[];
+  spend_this_month_usd: number;
+  monthly_cost_cap_usd: number | null;
+};
+
+export type ApiApiStats = {
+  window_days: number;
+  totals: {
+    requests: number;
+    errors: number;
+    questions: number;
+    cost_usd: number;
+  };
+  channel_split: {
+    app_questions: number;
+    api_questions: number;
+    app_cost_usd: number;
+    api_cost_usd: number;
+  };
+  per_day: { date: string; requests: number; errors: number }[];
+  endpoints: { route: string; requests: number; errors: number }[];
+  status_breakdown: Record<string, number>;
+  by_key: {
+    id: string;
+    name: string;
+    environment: ApiKeyEnvironment;
+    requests: number;
+  }[];
 };
 
 export type ApiEvalRun = {
@@ -476,6 +582,36 @@ export const api = {
 
   statsEvals: (token: string) =>
     request<{ runs: ApiEvalRun[] }>("/stats/evals", { token }),
+
+  statsApi: (token: string) => request<ApiApiStats>("/stats/api", { token }),
+
+  // ── API keys (Phase 11) ──────────────────────────────────────────────────
+
+  apiKeyCatalog: (token: string) =>
+    request<ApiKeyCatalog>("/api-keys/catalog", { token }),
+
+  listApiKeys: (token: string) => request<ApiApiKey[]>("/api-keys", { token }),
+
+  createApiKey: (
+    token: string,
+    body: {
+      name: string;
+      environment: ApiKeyEnvironment;
+      scopes: string[];
+      expires_in_days?: number | null;
+      rate_limit_per_hour?: number | null;
+      monthly_cost_cap_usd?: number | null;
+    },
+  ) => request<ApiApiKeyCreated>("/api-keys", { method: "POST", body, token }),
+
+  revokeApiKey: (token: string, id: string) =>
+    request<ApiApiKey>(`/api-keys/${id}/revoke`, { method: "POST", token }),
+
+  apiKeyUsage: (token: string, id: string) =>
+    request<ApiKeyUsage>(`/api-keys/${id}/usage`, { token }),
+
+  apiKeyAudit: (token: string) =>
+    request<ApiKeyEvent[]>("/api-keys/audit", { token }),
 };
 
 export type AskHandlers = {

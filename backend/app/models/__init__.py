@@ -4,8 +4,12 @@ from app.models.document import Chunk, Document, EmbeddingCache
 from app.models.conversation import Conversation, Message
 from app.models.memory import Memory
 from app.models.trace import EvalRun, QueryTrace
+from app.models.apikey import ApiKey, ApiKeyEvent, ApiRequest
 
 __all__ = [
+    "ApiKey",
+    "ApiKeyEvent",
+    "ApiRequest",
     "EvalRun",
     "QueryTrace",
     "Tenant",

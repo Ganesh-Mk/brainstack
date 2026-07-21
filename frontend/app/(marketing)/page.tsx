@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import {
   Activity,
   ArrowRight,
@@ -7,7 +6,6 @@ import {
   Building2,
   Cable,
   ChartLine,
-  CircleCheck,
   FileText,
   Lock,
   MessageSquare,
@@ -404,114 +402,6 @@ function SecurityBand() {
   );
 }
 
-/* ── Pricing preview ─────────────────────────────────────────────────── */
-const TIERS = [
-  {
-    name: "Starter",
-    price: "Free",
-    tagline: "For trying it with your team",
-    features: ["1 workspace", "50 documents", "Community support"],
-    featured: false,
-  },
-  {
-    name: "Team",
-    price: "$49",
-    per: "/mo per workspace",
-    tagline: "For teams that run on their knowledge",
-    features: [
-      "Unlimited documents",
-      "Role-based actions (MCP)",
-      "Analytics & evaluation",
-      "Priority support",
-    ],
-    featured: true,
-  },
-  {
-    name: "Enterprise",
-    price: "Custom",
-    tagline: "For scale, SSO and guarantees",
-    features: [
-      "SSO & audit logs",
-      "Custom MCP integrations",
-      "SLA & dedicated support",
-    ],
-    featured: false,
-  },
-];
-
-function PricingPreview() {
-  return (
-    <section className="border-t border-border bg-canvas">
-      <div className="mx-auto max-w-6xl px-6 py-20 lg:py-24">
-        <SectionHeading
-          eyebrow="Pricing"
-          title="Start free. Scale when it sticks."
-          accent={["free."]}
-        />
-        <Stagger className="mt-12 grid gap-5 md:grid-cols-3">
-          {TIERS.map((tier) => (
-            <StaggerItem key={tier.name} className="h-full">
-              <TiltCard
-                className={
-                  "relative h-full rounded-2xl border bg-surface p-6 " +
-                  (tier.featured
-                    ? "border-accent shadow-lg"
-                    : "border-border shadow-xs")
-                }
-              >
-                {tier.featured && (
-                  <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-accent px-3 py-0.5 text-xs font-semibold text-on-accent">
-                    Most popular
-                  </span>
-                )}
-                <h3 className="text-base font-semibold text-primary">
-                  {tier.name}
-                </h3>
-                <p className="mt-2 text-3xl font-semibold tracking-tight text-primary">
-                  {tier.price}
-                  {tier.per && (
-                    <span className="text-sm font-normal text-subtle">
-                      {" "}
-                      {tier.per}
-                    </span>
-                  )}
-                </p>
-                <p className="mt-1 text-sm text-muted">{tier.tagline}</p>
-                <ul className="mt-5 space-y-2.5">
-                  {tier.features.map((f) => (
-                    <li
-                      key={f}
-                      className="flex items-start gap-2 text-sm text-primary"
-                    >
-                      <CircleCheck className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                <ButtonLink
-                  href={tier.name === "Enterprise" ? "/contact" : "/signup"}
-                  variant={tier.featured ? "accent" : "outline"}
-                  className="mt-6 w-full"
-                >
-                  {tier.name === "Enterprise" ? "Contact us" : "Get started"}
-                </ButtonLink>
-              </TiltCard>
-            </StaggerItem>
-          ))}
-        </Stagger>
-        <Reveal delay={0.2}>
-          <p className="mt-8 text-center text-xs text-subtle">
-            Launch pricing — subject to change before general availability.{" "}
-            <Link href="/pricing" className="font-medium text-accent">
-              Full details →
-            </Link>
-          </p>
-        </Reveal>
-      </div>
-    </section>
-  );
-}
-
 /* ── FAQ ─────────────────────────────────────────────────────────────── */
 const FAQS = [
   {
@@ -614,7 +504,6 @@ export default function LandingPage() {
       <FeatureGrid />
       <MemorySection />
       <SecurityBand />
-      <PricingPreview />
       <FAQ />
       <CtaBand />
     </>

@@ -30,6 +30,14 @@ class QueryTrace(Base):
     output_tokens: Mapped[int | None] = mapped_column(Integer, nullable=True)
     cost_usd: Mapped[float | None] = mapped_column(Float, nullable=True)
     model: Mapped[str] = mapped_column(String(80), default="")
+    # Phase 11: who asked. Extending this table rather than forking a second
+    # one is what keeps cost authored exactly once — API spend is a join, not
+    # a second sum (PHASE_11 §1.6). Existing rows are 'app'/'app'/NULL.
+    channel: Mapped[str] = mapped_column(String(8), default="app")  # app | api
+    environment: Mapped[str] = mapped_column(String(8), default="app")
+    api_key_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, nullable=True, index=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), index=True
     )

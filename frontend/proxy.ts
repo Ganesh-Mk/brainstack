@@ -24,7 +24,6 @@ const APP_DOMAIN =
 
 const MARKETING_PREFIXES = [
   "/features",
-  "/pricing",
   "/security",
   "/about",
   "/contact",

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   ApiError,
   type ApiAnalytics,
+  type ApiApiStats,
   type ApiDashboardStats,
   type ApiEvalRun,
   type ApiQueryTrace,
@@ -108,27 +109,58 @@ export const DEMO_ANALYTICS: ApiAnalytics = {
   ],
 };
 
+export const DEMO_API_STATS: ApiApiStats = {
+  window_days: 14,
+  totals: { requests: 1284, errors: 9, questions: 214, cost_usd: 2.41 },
+  channel_split: {
+    app_questions: 87,
+    api_questions: 214,
+    app_cost_usd: 1.84,
+    api_cost_usd: 2.41,
+  },
+  per_day: Array.from({ length: 12 }, (_, i) => ({
+    date: new Date(Date.now() - (11 - i) * 86400e3).toISOString().slice(0, 10),
+    requests: [42, 61, 55, 88, 74, 103, 96, 131, 118, 149, 132, 165][i],
+    errors: i === 6 ? 4 : i === 9 ? 2 : 0,
+  })),
+  endpoints: [
+    { route: "/v1/ask", requests: 611, errors: 5 },
+    { route: "/v1/search", requests: 428, errors: 0 },
+    { route: "/v1/documents", requests: 168, errors: 3 },
+    { route: "/v1/documents/{document_id}", requests: 61, errors: 1 },
+    { route: "/v1/me", requests: 16, errors: 0 },
+  ],
+  status_breakdown: { "2xx": 1275, "4xx": 8, "5xx": 1 },
+  by_key: [
+    { id: "k1", name: "Prod ingest worker", environment: "live", requests: 1220 },
+    { id: "k2", name: "Staging sandbox", environment: "test", requests: 64 },
+  ],
+};
+
 export const DEMO_TRACES: ApiQueryTrace[] = [
   {
     id: "t1", question: "Assign the login-bug ticket to Priya and show her workload",
     status: "ok", latency_ms: 9800, first_token_ms: 4100,
     tool_kinds: ["planning", "action", "drafting"], source_count: 0,
     input_tokens: 6200, output_tokens: 240, cost_usd: 0.0074,
-    model: "claude-haiku-4-5", created_at: new Date(Date.now() - 1500e3).toISOString(),
+    model: "claude-haiku-4-5", channel: "app", environment: "app", api_key_id: null, api_key_name: null,
+    created_at: new Date(Date.now() - 1500e3).toISOString(),
   },
   {
     id: "t2", question: "Compare our refund policy with what competitors offer",
     status: "ok", latency_ms: 12400, first_token_ms: 5200,
     tool_kinds: ["planning", "knowledge", "web", "drafting"], source_count: 9,
     input_tokens: 9800, output_tokens: 410, cost_usd: 0.0119,
-    model: "claude-haiku-4-5", created_at: new Date(Date.now() - 3600e3).toISOString(),
+    model: "claude-haiku-4-5", channel: "api", environment: "live", api_key_id: "k1", api_key_name: "Prod ingest worker",
+    created_at: new Date(Date.now() - 3600e3).toISOString(),
   },
   {
     id: "t3", question: "What does ERR_4021 mean?",
     status: "ok", latency_ms: 6100, first_token_ms: 2900,
     tool_kinds: ["planning", "knowledge", "drafting"], source_count: 6,
     input_tokens: 5100, output_tokens: 180, cost_usd: 0.006,
-    model: "claude-haiku-4-5", created_at: new Date(Date.now() - 7200e3).toISOString(),
+    model: "claude-haiku-4-5", channel: "app", environment: "app", api_key_id: null, api_key_name: null,
+    created_at: new Date(Date.now() - 7200e3).toISOString(),
   },
 ];
 
