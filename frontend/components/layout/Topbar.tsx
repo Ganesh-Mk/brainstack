@@ -202,7 +202,7 @@ export function Topbar() {
           onClick={() =>
             toast(
               "Notifications are coming",
-              "You'll see ingestion and agent activity here once the backend lands.",
+              "Ingestion progress and agent activity will surface here. For now, watch them live on the Library and Agent Trace pages.",
             )
           }
           className="rounded-lg p-2 text-muted transition hover:bg-surface-raised hover:text-primary"
@@ -214,6 +214,10 @@ export function Topbar() {
       <Tooltip label="Help & docs">
         <Link
           href="/docs"
+          // The proxy sends /docs to the marketing host, so an RSC prefetch
+          // from app.* is a cross-origin fetch the browser blocks — noisy in
+          // the console, and useless since this is a full navigation anyway.
+          prefetch={false}
           aria-label="Help"
           className="rounded-lg p-2 text-muted transition hover:bg-surface-raised hover:text-primary"
         >

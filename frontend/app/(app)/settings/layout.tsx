@@ -12,7 +12,7 @@ export default function SettingsLayout({
       <PageHeader
         icon={Settings}
         title="Settings"
-        description="Configure your workspace. Appearance is live today — the rest switches on with the backend."
+        description="Configure your workspace — members, connected systems, models, appearance and programmatic access."
       />
       <div className="mt-6 border-b border-border pb-3">
         <SettingsTabs />
