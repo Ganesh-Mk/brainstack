@@ -75,6 +75,13 @@ def connections(
             {"name": t["name"], "description": t["description"]} for t in tools
         ],
     }
+    if configured and capable:
+        # Render never spins a napping free-tier service up for
+        # service-to-service requests (the edge 502s them — measured), but a
+        # BROWSER request does. Hand the UI the public health URL so it can
+        # fire the wake from outside while we ping until the service is up.
+        base = get_settings().COMPANY_MCP_URL.rstrip("/").removesuffix("/mcp")
+        out["wake_url"] = f"{base}/health"
     if wake is not None:
         out["wake"] = wake
     return out

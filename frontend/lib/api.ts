@@ -220,6 +220,10 @@ export type ApiConnections = {
   /** True when the tools were actually discovered for this session. */
   connected: boolean;
   tools: { name: string; description: string }[];
+  /** Public health URL of the company service. Render only spins a napping
+   * free-tier service up for requests from OUTSIDE its network — so the
+   * browser fires this wake, not the backend. */
+  wake_url?: string;
 };
 
 export type ApiTicket = {

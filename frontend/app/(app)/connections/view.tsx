@@ -41,7 +41,24 @@ export function ConnectionsView() {
   const { data, error, loading, demo, role, allowed, refresh, refreshing } =
     useCompanyResource<ApiConnections>(fetcher, DEMO_CONNECTIONS);
 
+  // The employee view IS the feature: this session has no connection.
+  const conn = allowed ? data : null;
+  const connected = Boolean(conn?.connected);
+  const wakeUrl = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    if (conn?.wake_url) wakeUrl.current = conn.wake_url;
+  }, [conn]);
+
   const refreshHard = useCallback(async () => {
+    // Render only spins the napping company service up for requests from
+    // OUTSIDE its network (backend-to-service gets an instant 502 — measured)
+    // — so the BROWSER fires the wake. The backend then pings until the
+    // service answers, and discovery follows.
+    if (wakeUrl.current) {
+      fetch(wakeUrl.current, { mode: "no-cors", cache: "no-store" }).catch(
+        () => {},
+      );
+    }
     hard.current = true;
     try {
       await refresh();
@@ -50,18 +67,14 @@ export function ConnectionsView() {
     }
   }, [refresh]);
 
-  // The employee view IS the feature: this session has no connection.
-  const conn = allowed ? data : null;
-  const connected = Boolean(conn?.connected);
-
   // If discovery came back empty (service napping), keep retrying hard —
-  // each retry's wake ping blocks up to 60s server-side, and a Render cold
-  // start can outlast one ping, so three attempts cover the worst case.
+  // the browser wake takes ~35s to spin the service up; three attempts
+  // (each blocking up to 60s server-side) cover the worst case.
   const retries = useRef(0);
   useEffect(() => {
     if (!conn || connected || !conn.configured || retries.current >= 3) return;
     retries.current += 1;
-    const t = setTimeout(() => void refreshHard(), 3000);
+    const t = setTimeout(() => void refreshHard(), 1000);
     return () => clearTimeout(t);
   }, [conn, connected, refreshHard]);
 

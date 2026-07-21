@@ -22,25 +22,26 @@ const INLINE = /(\*\*[^*]+\*\*|`[^`]+`|\[\d+\](?:\[\d+\])*)/g;
 const CITE = /\[(\d+)\]/g;
 
 /** Hover card for one source — fixed-positioned so the chat scroll area
- * can't clip it. */
-function SourcePopover({
+ * can't clip it. Pointer-events off: it's a preview; clicking the chip
+ * opens the source itself. Shared by citation chips and the sources row. */
+export function SourcePopover({
   source,
   anchor,
 }: {
   source: ApiSource;
   anchor: DOMRect;
 }) {
-  const width = 320;
+  const width = 340;
   const margin = 12;
   const left = Math.min(
     Math.max(margin, anchor.left + anchor.width / 2 - width / 2),
     (typeof window !== "undefined" ? window.innerWidth : 1200) - width - margin,
   );
-  const showBelow = anchor.top < 240;
+  const showBelow = anchor.top < 280;
   return (
     <div
       role="tooltip"
-      className="bs-scale-in fixed z-50 rounded-xl border border-border bg-surface p-3 shadow-lg"
+      className="bs-scale-in pointer-events-none fixed z-50 overflow-hidden rounded-xl border border-border bg-surface shadow-lg"
       style={{
         width,
         left,
@@ -49,28 +50,42 @@ function SourcePopover({
           : { bottom: window.innerHeight - anchor.top + 8 }),
       }}
     >
-      <div className="flex items-center gap-2">
-        {source.source_type === "url" ? (
-          <Globe className="h-3.5 w-3.5 shrink-0 text-accent" />
-        ) : (
-          <FileText className="h-3.5 w-3.5 shrink-0 text-accent" />
-        )}
+      <div className="flex items-center gap-2 border-b border-border bg-surface-raised/60 px-3 py-2">
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-accent-soft text-accent">
+          {source.source_type === "url" ? (
+            <Globe className="h-3 w-3" />
+          ) : (
+            <FileText className="h-3 w-3" />
+          )}
+        </span>
         <span className="min-w-0 flex-1 truncate text-xs font-semibold text-primary">
           {source.title}
         </span>
-        <span className="shrink-0 font-mono text-[10px] text-subtle">
-          {source.source_type === "url" ? "web page" : `p.${source.page}`}
+        <span className="shrink-0 rounded-md bg-accent-soft px-1.5 py-0.5 font-mono text-[10px] font-semibold text-accent-700">
+          {source.source_type === "url" ? "web" : `p.${source.page}`}
         </span>
       </div>
-      <p className="mt-2 line-clamp-6 text-xs leading-5 text-muted">
-        {source.text}
-      </p>
-      <p className="mt-2 flex items-center justify-between font-mono text-[10px] text-subtle">
-        <span>relevance {source.score.toFixed(2)}</span>
-        <span className="flex items-center gap-1 text-accent">
-          click to open <ExternalLink className="h-2.5 w-2.5" />
+      <div className="px-3 py-2.5">
+        {source.source_type === "url" && source.source_url && (
+          <p className="mb-2 flex items-center gap-1.5 truncate font-mono text-[10px] text-accent">
+            <ExternalLink className="h-2.5 w-2.5 shrink-0" />
+            {source.source_url}
+          </p>
+        )}
+        <p className="line-clamp-6 text-xs leading-5 text-muted">
+          “{source.text}”
+        </p>
+      </div>
+      <div className="flex items-center justify-between border-t border-border px-3 py-1.5">
+        <span className="font-mono text-[10px] text-subtle">
+          relevance {source.score.toFixed(2)}
         </span>
-      </p>
+        <span className="flex items-center gap-1 text-[10px] font-medium text-accent">
+          click to open
+          {source.source_type === "url" ? " the page" : ` p.${source.page}`}
+          <ExternalLink className="h-2.5 w-2.5" />
+        </span>
+      </div>
     </div>
   );
 }
