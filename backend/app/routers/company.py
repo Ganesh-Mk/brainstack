@@ -12,6 +12,8 @@ from get_current_user() only.
 
 from __future__ import annotations
 
+import time
+
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -22,16 +24,26 @@ from app.services import mcp_client
 router = APIRouter(tags=["company"])
 
 
-def _wake_company_service() -> None:
-    """Block until the free-tier company service answers /health (or 60s).
-    Render spins the service up on first request after a nap — an explicit
-    refresh is exactly when it's worth riding out that cold start."""
+def _wake_company_service(budget_s: float = 60.0) -> dict:
+    """Ping the company service's /health until it answers 200 (or the
+    budget runs out). Render spins the service up on first request after a
+    nap, but a single long request doesn't reliably ride the cold start —
+    short repeated pings do. Returns diagnostics that /connections surfaces,
+    so a failing wake is observable from outside (we can't read Render logs)."""
     settings = get_settings()
     base = settings.COMPANY_MCP_URL.rstrip("/").removesuffix("/mcp")
-    try:
-        httpx.get(f"{base}/health", timeout=60)
-    except httpx.HTTPError:
-        pass  # discovery below will report the honest state
+    t0 = time.monotonic()
+    detail = "no attempt"
+    while time.monotonic() - t0 < budget_s:
+        try:
+            r = httpx.get(f"{base}/health", timeout=15)
+            detail = f"status={r.status_code}"
+            if r.status_code == 200:
+                return {"ok": True, "detail": detail, "ms": int((time.monotonic() - t0) * 1000)}
+        except Exception as e:  # noqa: BLE001 — diagnostic surface
+            detail = f"{type(e).__name__}: {str(e)[:160]}"
+        time.sleep(3)
+    return {"ok": False, "detail": detail, "ms": int((time.monotonic() - t0) * 1000)}
 
 
 @router.get("/connections")
@@ -45,12 +57,13 @@ def connections(
     configured = mcp_client.is_configured()
     capable = current.role in ("manager", "admin")
     tools: list[dict] = []
+    wake: dict | None = None
     if configured and capable:
         if refresh:
             mcp_client.reset_cache()
-            _wake_company_service()
+            wake = _wake_company_service()
         tools = mcp_client.discover_tools(str(current.tenant_id), current.role)
-    return {
+    out = {
         "server": "Company Systems",
         "transport": "streamable-http",
         "configured": configured,
@@ -62,6 +75,9 @@ def connections(
             {"name": t["name"], "description": t["description"]} for t in tools
         ],
     }
+    if wake is not None:
+        out["wake"] = wake
+    return out
 
 
 def _company_get(path: str, current: CurrentUser, params: dict | None = None) -> dict:
