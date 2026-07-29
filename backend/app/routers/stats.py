@@ -307,6 +307,11 @@ def model_config(
     return {
         "answer_model": s.LLM_MODEL_AGENT,
         "utility_model": s.LLM_MODEL_DEV,  # judges, memory, summaries
+        # Our own fine-tuned model (training/). Listed even where it can't
+        # run, because "answer_model: claude" alone would now be a half-truth
+        # — the Ask page lets a question pick either one.
+        "local_model": s.LLM_MODEL_LOCAL,
+        "default_provider": s.LLM_PROVIDER,
         "embedding_model": s.EMBEDDING_MODEL,
         "rerank_enabled": s.RERANK_ENABLED,
         "rerank_model": s.RERANK_MODEL if s.RERANK_ENABLED else None,

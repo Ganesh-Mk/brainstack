@@ -44,6 +44,9 @@ export type ApiMember = {
 export type ApiModelConfig = {
   answer_model: string;
   utility_model: string;
+  /** Our own fine-tuned model, selectable per question on the Ask page. */
+  local_model: string;
+  default_provider: "anthropic" | "local";
   embedding_model: string;
   rerank_enabled: boolean;
   rerank_model: string | null;
@@ -647,6 +650,32 @@ export type AskHandlers = {
   onError: (message: string) => void;
 };
 
+// ── Model picker (which model answers) ─────────────────────────────────────
+
+export type ApiProviderId = "anthropic" | "local";
+
+export type ApiProvider = {
+  id: ApiProviderId;
+  label: string; // the concrete model, e.g. "brainstack-3b"
+  title: string; // what a human calls it
+  kind: "hosted" | "local";
+  available: boolean;
+  detail: string; // live status: "ready", or why not
+  note: string; // what this model IS — static, safe to show even when down
+  is_default: boolean;
+};
+
+/**
+ * Which models this deployment can offer, with live availability.
+ *
+ * Never cached: `local` runs on the user's own machine via Ollama, so its
+ * status is whatever is true right now. On the hosted API it is always
+ * unavailable — the backend cannot reach a laptop — and `note` explains that.
+ */
+export async function listModels(token: string): Promise<ApiProvider[]> {
+  return request<ApiProvider[]>("/models", { token });
+}
+
 /**
  * Stream a grounded answer over SSE. Uses fetch + ReadableStream because
  * EventSource can't send the Authorization header. Event order from the
@@ -657,6 +686,7 @@ export async function streamAsk(
   conversationId: string,
   content: string,
   handlers: AskHandlers,
+  model?: ApiProviderId,
 ): Promise<void> {
   let res: Response;
   try {
@@ -667,7 +697,9 @@ export async function streamAsk(
         Authorization: `Bearer ${token}`,
         Accept: "text/event-stream",
       },
-      body: JSON.stringify({ content }),
+      // `model` omitted entirely when unset — the server then uses its own
+      // configured default, which is what every pre-picker client did.
+      body: JSON.stringify(model ? { content, model } : { content }),
     });
   } catch {
     handlers.onError("Can't reach the server. Is the backend running?");

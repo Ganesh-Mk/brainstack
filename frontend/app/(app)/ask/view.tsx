@@ -26,11 +26,13 @@ import {
 import { cn } from "@/lib/cn";
 import { MessageContent } from "@/components/ask/MessageContent";
 import { PdfViewer } from "@/components/ask/PdfViewer";
+import { ModelPicker } from "@/components/ask/ModelPicker";
 import { TraceSteps, traceDuration } from "@/components/ask/TraceSteps";
 import { Badge } from "@/components/ui/Badge";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Tooltip } from "@/components/ui/Tooltip";
+import { useAskModelStore } from "@/stores/askModel";
 import { useSessionStore } from "@/stores/session";
 import { toast } from "@/stores/toast";
 
@@ -129,6 +131,10 @@ export function AskView() {
   const [messages, setMessages] = useState<ApiMessage[]>(demo ? DEMO_MESSAGES : []);
   const [loadingMessages, setLoadingMessages] = useState(false);
 
+  // null = send no `model` field, letting the server use its default.
+  const model = useAskModelStore((s) => s.model);
+  const setModel = useAskModelStore((s) => s.setModel);
+
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [liveText, setLiveText] = useState("");
@@ -218,6 +224,12 @@ export function AskView() {
       window.open(s.source_url, "_blank", "noreferrer");
       return;
     }
+    // A remembered fact has no document behind it — opening a PDF viewer on an
+    // empty id would show a broken frame. Send them to Memory instead.
+    if (s.source_type === "text" || !s.document_id) {
+      toast("From your memory", "Manage remembered facts on the Memory page.");
+      return;
+    }
     setPdf({ id: s.document_id, page: s.page, title: s.title });
   };
 
@@ -283,7 +295,9 @@ export function AskView() {
         setInput(question); // give the question back — nothing was saved
         toast("Answer failed", message, "error");
       },
-    });
+    },
+    // null = don't send `model` at all, so the server picks its own default.
+    model ?? undefined);
   };
 
   // Auto-scroll as tokens arrive.
@@ -451,6 +465,14 @@ export function AskView() {
               </p>
               {demo && <Badge variant="neutral">Sample data</Badge>}
             </div>
+            {!demo && (
+              <ModelPicker
+                token={token}
+                value={model}
+                onChange={setModel}
+                disabled={streaming}
+              />
+            )}
             <Button
               variant="outline"
               size="sm"

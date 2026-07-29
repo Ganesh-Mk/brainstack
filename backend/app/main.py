@@ -15,6 +15,7 @@ from app.routers import (
     documents,
     health,
     memories,
+    models,
     stats,
     v1,
 )
@@ -65,6 +66,7 @@ app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(documents.router)
 app.include_router(conversations.router)
+app.include_router(models.router)
 app.include_router(company.router)
 app.include_router(memories.router)
 app.include_router(stats.router)

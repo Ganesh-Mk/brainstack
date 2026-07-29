@@ -48,5 +48,22 @@ class ConversationDetail(ConversationOut):
     messages: list[MessageOut] = []
 
 
+class ProviderOut(BaseModel):
+    """One row in the Ask page's model picker."""
+
+    id: Literal["anthropic", "local"]
+    label: str  # the concrete model name, e.g. "brainstack-3b"
+    title: str  # what a human calls it
+    kind: Literal["hosted", "local"]
+    available: bool
+    detail: str  # live status: "ready", or why not
+    note: str  # what this model IS — static, safe to show always
+    is_default: bool
+
+
 class AskRequest(BaseModel):
     content: str = Field(min_length=1, max_length=4000)
+    # Which answering model to use for THIS question (the Ask page's picker).
+    # Omitted = the server's configured default, so every existing client and
+    # the eval runner keep working untouched.
+    model: Literal["anthropic", "local"] | None = None

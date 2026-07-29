@@ -37,7 +37,7 @@ from app.schemas.chat import (
     SourceOut,
     TraceStep,
 )
-from app.services import agent, chat, memory, traces
+from app.services import agent, chat, grounded, memory, traces
 from app.services import ask as ask_service  # the route below is named `ask`
 
 log = logging.getLogger("chat")
@@ -207,6 +207,7 @@ def ask(
     user_id = current.user.id
     convo_id, first_question = convo.id, _question_count(db, convo.id) == 0
     convo_summary = convo.summary  # Phase 8: older turns, compressed
+    provider = body.model  # None = the server's configured default
 
     def generate() -> Generator[str, None, None]:
         # Own session: the request session's lifecycle ends under us while
@@ -236,7 +237,7 @@ def ask(
 
             # The graph loop itself lives in services/ask.py — shared with
             # /v1/ask so there is exactly one implementation (PHASE_11 §1.1).
-            events = ask_service.run(state)
+            events = ask_service.run(state, provider=provider)
             try:
                 while True:
                     event, payload = next(events)
@@ -275,6 +276,11 @@ def ask(
             memory.maybe_update_summary(session, convo_id)
 
         except chat.ChatNotConfigured as e:
+            yield _sse("error", {"detail": str(e)})
+        except grounded.LocalModelUnavailable as e:
+            # The picker let them choose a model that isn't up. Its message
+            # names the fix ("start Ollama", "the model isn't installed"), so
+            # relay it verbatim rather than the generic failure text below.
             yield _sse("error", {"detail": str(e)})
         except Exception:
             log.exception("ask stream failed for conversation %s", convo_id)

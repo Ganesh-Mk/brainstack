@@ -54,15 +54,23 @@ def cost_of(input_tokens: int, output_tokens: int) -> float | None:
     return round(usd, 6)
 
 
-def run(state) -> Generator[tuple[str, object], None, AskOutcome]:
-    """Stream the graph. Yields ("trace"|"sources"|"reset"|"delta", payload)."""
+def run(
+    state, provider: str | None = None
+) -> Generator[tuple[str, object], None, AskOutcome]:
+    """Stream the graph. Yields ("trace"|"sources"|"reset"|"delta", payload).
+
+    `provider` overrides LLM_PROVIDER for this one ask — that is what the Ask
+    page's model picker sends. None keeps the configured default, so callers
+    that don't care (/v1/ask, the eval runner) are unaffected."""
     settings = get_settings()
 
     # The provider switch lives HERE, not in the routes, for the same reason
     # the graph loop does: one implementation, and both callers (the app's SSE
     # route and /v1/ask) get it for free. `local` runs our own fine-tuned
     # model over the same retrieval — see services/grounded.py.
-    if settings.LLM_PROVIDER == "local":
+    from app.services import providers
+
+    if providers.resolve(provider) == "local":
         from app.services import grounded
 
         return (yield from grounded.run(state))

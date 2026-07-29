@@ -16,7 +16,8 @@ import pytest
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
 from app.config import get_settings
-from app.services import ask, chat, evaluation, grounded
+from app.services import ask, chat, evaluation, grounded, providers
+from tests.conftest import auth_header, signup
 
 
 def _state(question: str = "How many leave days do we get?", history: list | None = None) -> dict:
@@ -130,6 +131,66 @@ def test_the_model_gets_the_production_prompt(local_provider, fake_retrieval, fa
     )
 
 
+def test_memories_become_numbered_passages(local_provider, fake_retrieval, fake_ollama):
+    """Two regressions in one.
+
+    1. Grounded mode rebuilds the system message, so Phase 8 context has to be
+       re-added — dropping it made the local model answer "I don't know" to
+       questions the user had already told it the answer to.
+    2. Memories arrive as CITABLE passages, not as a prompt block. The model
+       cites everything it was trained on, so a memory in the system prompt got
+       an arbitrary [n] pointing at an unrelated passage.
+    """
+    state = _state()
+    state["memories"] = ["Ganesh is the CEO of Lovely.", "Ganesh is a Software Engineer."]
+    _, outcome = drain(grounded.run(state))
+
+    # 2 retrieved + 2 memories, numbered contiguously so [3]/[4] are real.
+    assert [s["n"] for s in outcome.sources] == [1, 2, 3, 4]
+    mem = [s for s in outcome.sources if s["source_type"] == "text"]
+    assert [s["n"] for s in mem] == [3, 4]
+    assert mem[0]["text"] == "Ganesh is the CEO of Lovely."
+    assert mem[0]["title"] == "Saved memory"
+
+    user_prompt = fake_ollama.messages[-1]["content"]
+    assert "[3] (Saved memory, p.1) Ganesh is the CEO of Lovely." in user_prompt
+
+    # The memory must NOT also be in the system prompt — that is the shape
+    # that produced fabricated citations.
+    assert "Ganesh is the CEO" not in fake_ollama.messages[0]["content"]
+
+
+def test_memory_alone_is_enough_to_answer(local_provider, monkeypatch, fake_ollama):
+    """Retrieval finds nothing, but we remember something → still answerable,
+    so it must not short-circuit to the refusal."""
+    monkeypatch.setattr(chat, "retrieve", lambda db, tenant_id, q: [])
+    state = _state()
+    state["memories"] = ["Ganesh is the CEO of Lovely."]
+    _, outcome = drain(grounded.run(state))
+
+    assert outcome.answer != grounded.REFUSAL
+    assert [s["n"] for s in outcome.sources] == [1]
+
+
+def test_conversation_summary_reaches_the_local_model(
+    local_provider, fake_retrieval, fake_ollama
+):
+    state = _state()
+    state["summary"] = "Earlier they asked about refunds and leave policy."
+    drain(grounded.run(state))
+
+    system = fake_ollama.messages[0]["content"]
+    assert "Earlier they asked about refunds" in system
+
+
+def test_no_memories_leaves_the_prompt_exactly_as_trained(
+    local_provider, fake_retrieval, fake_ollama
+):
+    """The common case must stay byte-identical to the fine-tuning format."""
+    drain(grounded.run(_state()))
+    assert fake_ollama.messages[0]["content"] == chat.SYSTEM_PROMPT
+
+
 def test_prior_turns_are_replayed_for_follow_ups(local_provider, fake_retrieval, fake_ollama):
     history = [HumanMessage(content="what about sick leave?"), AIMessage(content="It is uncapped [1].")]
     drain(grounded.run(_state(history=history)))
@@ -186,6 +247,85 @@ def test_ask_run_routes_to_grounded_when_local(local_provider, monkeypatch):
     events, outcome = drain(ask.run(_state()))
     assert events == [("delta", {"text": "from grounded"})]
     assert outcome is sentinel
+
+
+def test_per_request_provider_beats_the_configured_default(monkeypatch):
+    """The Ask page's picker. Config says anthropic; this ask says local."""
+    monkeypatch.setattr(get_settings(), "LLM_PROVIDER", "anthropic")
+    monkeypatch.setattr(grounded, "run", lambda state: iter(()))
+
+    events, _ = drain(ask.run(_state(), provider="local"))
+    assert events == []  # reached grounded, not the graph
+
+
+def test_unknown_provider_is_rejected(local_provider):
+    with pytest.raises(ValueError):
+        drain(ask.run(_state(), provider="gpt-5"))
+
+
+# ── the picker's data ───────────────────────────────────────────────────────
+
+
+def test_describe_reports_local_as_unavailable_when_ollama_is_down(monkeypatch):
+    monkeypatch.setattr(grounded, "probe", lambda: (False, "Ollama isn't running"))
+    rows = {p["id"]: p for p in providers.describe()}
+
+    assert rows["local"]["available"] is False
+    assert rows["local"]["detail"] == "Ollama isn't running"
+    # The static note must be present even when down — it is the explanation
+    # a hosted user needs, and it is why the red dot is expected there.
+    assert "cannot reach" in rows["local"]["note"]
+    assert rows["anthropic"]["available"] is True  # .env has a key
+
+
+def test_probe_distinguishes_down_from_model_missing(monkeypatch):
+    """Two different fixes, so they must not collapse into one message."""
+    import httpx
+
+    def down(url, timeout):
+        raise httpx.ConnectError("refused")
+
+    monkeypatch.setattr(grounded.httpx, "get", down)
+    ok, detail = grounded.probe()
+    assert ok is False and "isn't running" in detail
+
+    class Resp:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"data": [{"id": "llama3:latest"}]}
+
+    monkeypatch.setattr(grounded.httpx, "get", lambda url, timeout: Resp())
+    ok, detail = grounded.probe()
+    assert ok is False and "isn't installed" in detail
+
+
+def test_probe_matches_a_tagged_model_name(monkeypatch):
+    """Ollama reports `brainstack-3b:latest`; the setting says `brainstack-3b`."""
+
+    class Resp:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"data": [{"id": "brainstack-3b:latest"}]}
+
+    monkeypatch.setattr(grounded.httpx, "get", lambda url, timeout: Resp())
+    assert grounded.probe() == (True, "ready")
+
+
+def test_models_endpoint_requires_auth(client):
+    assert client.get("/models").status_code == 401
+
+
+def test_models_endpoint_lists_both_providers(client, monkeypatch):
+    monkeypatch.setattr(grounded, "probe", lambda: (True, "ready"))
+    token = signup(client, "Picker Co", "Ann", "ann@picker-co.com").json()["access_token"]
+
+    body = client.get("/models", headers=auth_header(token)).json()
+    assert [p["id"] for p in body] == ["anthropic", "local"]
+    assert all({"label", "title", "kind", "available", "detail", "note"} <= p.keys() for p in body)
 
 
 def test_ask_run_uses_the_graph_when_anthropic(monkeypatch):

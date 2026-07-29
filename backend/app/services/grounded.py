@@ -36,7 +36,7 @@ import httpx
 
 from app import db as app_db
 from app.config import get_settings
-from app.services import chat
+from app.services import agent, chat
 
 log = logging.getLogger("grounded")
 
@@ -60,6 +60,50 @@ REFUSAL = (
     if _REFUSAL_MATCH
     else "I don't know — that isn't covered in this workspace's documents."
 )
+
+
+# The UI polls this whenever the model picker is opened, so it must be fast
+# and it must never raise — an unreachable model is a status to display, not
+# an error to handle.
+#
+# The connect budget is separate and small on purpose: a dead host is resolved
+# dual-stack, so the client tries IPv6 then IPv4 and a single flat timeout gets
+# spent TWICE (measured 4.4s for a nominal 2s). Worst case here is ~1.6s.
+PROBE_TIMEOUT = httpx.Timeout(1.5, connect=0.8)
+PROBE_BUDGET_S = 1.6  # what we tell the user when it elapses
+
+# Why the hosted deployment can never satisfy `local`. Stated once, here,
+# because the UI shows it and it is the reason the switch exists at all.
+LOCAL_NOTE = (
+    "Runs on your own machine through Ollama. A hosted API server cannot reach "
+    "it — run the backend locally to use this model."
+)
+
+
+def probe() -> tuple[bool, str]:
+    """(reachable, one-line status). Distinguishes 'Ollama is down' from
+    'Ollama is up but the model was never created' — different fixes, so the
+    UI must not collapse them into one red dot."""
+    settings = get_settings()
+    want = settings.LLM_MODEL_LOCAL
+    try:
+        resp = httpx.get(
+            settings.OLLAMA_BASE_URL.rstrip("/") + "/models", timeout=PROBE_TIMEOUT
+        )
+        resp.raise_for_status()
+        installed = {m.get("id", "") for m in (resp.json().get("data") or [])}
+    except httpx.ConnectError:
+        return False, f"Ollama isn't running at {settings.OLLAMA_BASE_URL}"
+    except httpx.TimeoutException:
+        return False, f"Ollama didn't respond within {PROBE_BUDGET_S:.1f}s"
+    except Exception as e:
+        return False, f"Ollama check failed ({e.__class__.__name__})"
+
+    # Ollama reports tags as `name:tag`; `brainstack-3b` matches
+    # `brainstack-3b:latest`.
+    if not any(i == want or i.startswith(want + ":") for i in installed if i):
+        return False, f"Ollama is running, but '{want}' isn't installed"
+    return True, "ready"
 
 
 def _history_from(messages: list) -> list[dict]:
@@ -155,7 +199,32 @@ def run(state) -> Generator[tuple[str, object], None, "object"]:
         found = chat.retrieve(session, uuid.UUID(state["tenant_id"]), question)
     finally:
         session.close()
-    sources = [s.to_dict() for s in found]
+
+    # Recalled memories join the context as NUMBERED PASSAGES rather than as a
+    # system-prompt block.
+    #
+    # Why the two paths differ here: Claude reads "use these facts, no citation
+    # needed" and complies. Our fine-tune cannot — all 1,010 training rows cite
+    # a numbered passage, so it has never seen a fact that shouldn't be cited,
+    # and given memories in the prompt it staples an arbitrary [n] onto them
+    # (verified: it cited the annual-leave passage for "who is the CEO"). That
+    # passes citation_validity while pointing at nothing.
+    #
+    # Making the memory a real passage works WITH the trained habit instead of
+    # against it, and the resulting citation is true: the fact IS in block [n].
+    passages = list(found) + [
+        chat.Source(
+            n=len(found) + i + 1,
+            document_id="",
+            title="Saved memory",
+            page=1,
+            text=m,
+            score=1.0,
+            source_type="text",
+        )
+        for i, m in enumerate(state.get("memories") or [])
+    ]
+    sources = [s.to_dict() for s in passages]
 
     step = {
         "n": 1,
@@ -172,19 +241,26 @@ def run(state) -> Generator[tuple[str, object], None, "object"]:
     in_tokens = out_tokens = 0
     draft_started = t_start
 
-    if not found:
-        # Nothing indexed, or nothing matched. The trained behaviour for "the
-        # context does not contain it" is the refusal — so emit it directly
-        # rather than asking the model to refuse over an empty context block,
-        # a shape it never saw in training.
+    if not passages:
+        # Nothing indexed, nothing matched, nothing remembered. The trained
+        # behaviour for "the context does not contain it" is the refusal — so
+        # emit it directly rather than asking the model to refuse over an empty
+        # context block, a shape it never saw in training.
         answer = REFUSAL
         first_token_at = time.perf_counter()
         yield ("delta", {"text": answer})
     else:
-        messages = [{"role": "system", "content": chat.SYSTEM_PROMPT}]
+        # The grounded static prompt (exactly what the model was fine-tuned on)
+        # plus the conversation summary. Memories are NOT here — they are
+        # passages above. Rebuilding the system message means the summary has
+        # to be re-added explicitly; dropping it lost the older turns.
+        system = chat.SYSTEM_PROMPT + agent.dynamic_context(
+            state.get("summary"), None
+        )
+        messages = [{"role": "system", "content": system}]
         messages += _history_from(state["messages"])
         messages.append(
-            {"role": "user", "content": chat.build_user_prompt(question, found)}
+            {"role": "user", "content": chat.build_user_prompt(question, passages)}
         )
 
         parts: list[str] = []

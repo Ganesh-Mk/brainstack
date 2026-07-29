@@ -53,6 +53,11 @@ class AgentState(TypedDict):
     trace: list[dict]
     drafts: int  # Phase 8 reflection: attempts examined (hard cap 2)
     question: str  # the current user question (reflection critic context)
+    # Phase 8 context, carried in raw as well as baked into the system
+    # message: grounded mode builds its OWN system prompt and would otherwise
+    # have no way to recover these.
+    summary: str | None
+    memories: list[str]
 
 
 # ── Native tools (schemas only — execution is ours, in the tools node) ──────
@@ -174,6 +179,16 @@ def system_prompt_parts(
     static = SYSTEM_PROMPT + (
         _ACTIONS_PROMPT if has_action_tools else _NO_ACTIONS_PROMPT
     )
+    return static, dynamic_context(summary, memories)
+
+
+def dynamic_context(summary: str | None, memories: list[str] | None) -> str:
+    """The per-conversation half of the system prompt: older turns compressed,
+    plus what we remember about this user.
+
+    Shared with grounded mode (services/grounded.py), which builds a different
+    static half but must carry the SAME memory block — otherwise selecting the
+    local model silently forgets everything the user has ever told us."""
     dynamic = ""
     if summary:
         dynamic += (
@@ -189,7 +204,7 @@ def system_prompt_parts(
             + "\n".join(f"- {m}" for m in memories)
             + "\n"
         )
-    return static, dynamic
+    return dynamic
 
 
 def system_prompt(
@@ -510,6 +525,8 @@ def initial_state(
         "trace": [],
         "drafts": 0,
         "question": question,
+        "summary": summary,
+        "memories": list(memories or []),
     }
 
 

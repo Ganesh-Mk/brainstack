@@ -6,7 +6,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { ExternalLink, FileText, Globe } from "lucide-react";
+import { Brain, ExternalLink, FileText, Globe } from "lucide-react";
 import type { ApiSource } from "@/lib/api";
 import { cn } from "@/lib/cn";
 
@@ -65,6 +65,8 @@ export function SourcePopover({
         <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-accent-soft text-accent">
           {source.source_type === "url" ? (
             <Globe className="h-3 w-3" />
+          ) : source.source_type === "text" ? (
+            <Brain className="h-3 w-3" />
           ) : (
             <FileText className="h-3 w-3" />
           )}
@@ -73,7 +75,11 @@ export function SourcePopover({
           {source.title}
         </span>
         <span className="shrink-0 rounded-md bg-accent-soft px-1.5 py-0.5 font-mono text-[10px] font-semibold text-accent-700">
-          {source.source_type === "url" ? "web" : `p.${source.page}`}
+          {source.source_type === "url"
+            ? "web"
+            : source.source_type === "text"
+              ? "memory"
+              : `p.${source.page}`}
         </span>
       </div>
       <div className="px-3 py-2.5">
@@ -110,15 +116,21 @@ export function SourcePopover({
         <span className="font-mono text-[10px] text-subtle">
           relevance {source.score.toFixed(2)}
         </span>
-        <button
-          type="button"
-          onClick={() => onOpen?.(source)}
-          className="flex items-center gap-1 text-[10px] font-medium text-accent hover:underline"
-        >
-          open
-          {source.source_type === "url" ? " the page" : ` p.${source.page}`}
-          <ExternalLink className="h-2.5 w-2.5" />
-        </button>
+        {/* A remembered fact has no file and no page to open — it came from
+            what you told the assistant, not from a document. */}
+        {source.source_type === "text" ? (
+          <span className="text-[10px] text-subtle">from your saved memory</span>
+        ) : (
+          <button
+            type="button"
+            onClick={() => onOpen?.(source)}
+            className="flex items-center gap-1 text-[10px] font-medium text-accent hover:underline"
+          >
+            open
+            {source.source_type === "url" ? " the page" : ` p.${source.page}`}
+            <ExternalLink className="h-2.5 w-2.5" />
+          </button>
+        )}
       </div>
     </div>
   );

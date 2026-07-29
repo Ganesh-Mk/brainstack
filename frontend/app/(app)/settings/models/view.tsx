@@ -12,6 +12,8 @@ import { Skeleton } from "@/components/ui/Skeleton";
 const DEMO_CONFIG: ApiModelConfig = {
   answer_model: "claude-haiku-4-5",
   utility_model: "claude-haiku-4-5",
+  local_model: "brainstack-3b",
+  default_provider: "anthropic",
   embedding_model: "sentence-transformers/all-MiniLM-L6-v2",
   rerank_enabled: false,
   rerank_model: null,
@@ -60,7 +62,14 @@ export function ModelsSettingsView() {
           Models
         </p>
         <div className="mt-2">
-          <Row label="Answers & agent" value={c.answer_model} />
+          <Row
+            label="Answers & agent"
+            value={`${c.answer_model}${c.default_provider === "anthropic" ? " (default)" : ""}`}
+          />
+          <Row
+            label="Fine-tuned, self-hosted"
+            value={`${c.local_model}${c.default_provider === "local" ? " (default)" : ""}`}
+          />
           <Row label="Utility (judges, memory, summaries)" value={c.utility_model} />
           <Row label="Embeddings" value={c.embedding_model} />
           <Row
