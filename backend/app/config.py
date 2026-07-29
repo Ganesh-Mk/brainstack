@@ -89,6 +89,19 @@ class Settings(BaseSettings):
     API_REQUEST_RETENTION_DAYS: int = 90
     API_KEY_CACHE_TTL: int = 60  # seconds; Redis lookup cache
 
+    # Our own fine-tuned model (training/) — grounded mode.
+    # `anthropic` = the LangGraph agent, unchanged, the only thing production
+    # ever runs. `local` = retrieval is identical, but the cited answer is
+    # written by our 3B model over Ollama instead of by Claude, and the tools
+    # are skipped (a 3B model cannot be trusted to emit tool-call JSON — and
+    # tool routing is not the skill we trained). Never set `local` on Render:
+    # the 512MB free instance cannot host a model, which is exactly why the
+    # comparison in docs/FINETUNE_RESULTS.md is run locally.
+    LLM_PROVIDER: str = "anthropic"  # anthropic | local
+    OLLAMA_BASE_URL: str = "http://localhost:11434/v1"
+    LLM_MODEL_LOCAL: str = "brainstack-3b"
+    LLM_LOCAL_TIMEOUT: float = 300.0  # CPU inference is slow; 22 eval questions
+
     # The agent (LangGraph)
     TAVILY_API_KEY: str = ""
     LLM_MODEL_AGENT: str = "claude-haiku-4-5"  # env-swap up for demos

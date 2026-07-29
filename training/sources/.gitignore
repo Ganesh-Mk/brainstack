@@ -1,0 +1,6 @@
+# Source documents are not committed: some are large, most are someone else's
+# to redistribute. The dataset derived from them (../data/train.jsonl) is
+# committed instead — that is the artifact that matters.
+*
+!.gitignore
+!README.md

@@ -43,11 +43,13 @@ def sse_events(text: str):
 
 
 def ask(client: httpx.Client, base: str, h: dict, convo_id: str, q: str):
+    t0 = time.perf_counter()
     with client.stream(
         "POST", f"{base}/conversations/{convo_id}/messages", headers=h,
         json={"content": q},
     ) as r:
         body = "".join(r.iter_text())
+    elapsed_ms = round((time.perf_counter() - t0) * 1000)
     events = sse_events(body)
     text = []
     for e, d in events:
@@ -56,7 +58,8 @@ def ask(client: httpx.Client, base: str, h: dict, convo_id: str, q: str):
         elif e == "reset":
             text = []
     sources = next((d for e, d in events if e == "sources"), [])
-    return "".join(text), sources, events[-1][0] == "done" if events else False
+    done = events[-1][0] == "done" if events else False
+    return "".join(text), sources, done, elapsed_ms
 
 
 def main() -> int:
@@ -95,11 +98,12 @@ def main() -> int:
     rows = []
     for item in golden:
         convo = client.post(f"{base}/conversations", headers=h).json()["id"]
-        answer, sources, done = ask(client, base, h, convo, item["question"])
+        answer, sources, done, elapsed_ms = ask(client, base, h, convo, item["question"])
         if not done:
             rows.append({**item, "answer": "(stream failed)", "faithfulness": 0.0,
                          "relevance": 0.0, "retrieval_hit": False,
-                         "citation_valid": False, "refused": False})
+                         "citation_valid": False, "refused": False,
+                         "latency_ms": elapsed_ms})
             continue
 
         faith, faith_why = evaluation.faithfulness(answer, sources)
@@ -120,6 +124,9 @@ def main() -> int:
             "relevance": rel, "relevance_why": rel_why,
             "retrieval_hit": hit,
             "citation_valid": evaluation.citation_validity(answer, sources),
+            # Wall-clock per question — the honest cost of a CPU-served model
+            # in the Claude-vs-ours comparison (training/compare_eval.py).
+            "latency_ms": elapsed_ms,
         })
         mark = "✓" if (faith >= 0.5 and rel >= 0.5 and hit) else "✗"
         print(f"  {mark} q{item['id']:>2} faith={faith:.1f} rel={rel:.1f} "
@@ -143,10 +150,24 @@ def main() -> int:
     from sqlalchemy import create_engine, text as sq
     from sqlalchemy.orm import Session
 
-    engine = create_engine(get_settings().sqlalchemy_url)
+    settings = get_settings()
+    # Label the run with the model that actually answered. With LLM_PROVIDER
+    # =local that is our fine-tuned model, not the agent's Claude — and the
+    # whole point of the comparison is that the two runs label themselves.
+    # (Assumes base_url is the backend these settings configure, same as the
+    # model label always has.)
+    model_label = (
+        settings.LLM_MODEL_LOCAL
+        if settings.LLM_PROVIDER == "local"
+        else settings.LLM_MODEL_AGENT
+    )
+    print(f"  {'avg latency':<20}{statistics.mean(r['latency_ms'] for r in rows) / 1000:>6.1f}s")
+    print(f"  {'model':<20}{model_label:>7}")
+
+    engine = create_engine(settings.sqlalchemy_url)
     with Session(engine) as s:
         s.add(EvalRun(
-            dataset_size=len(rows), model=get_settings().LLM_MODEL_AGENT,
+            dataset_size=len(rows), model=model_label,
             notes=args.notes or None, per_question=json.dumps(rows),
             **scores,
         ))

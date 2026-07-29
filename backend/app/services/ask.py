@@ -57,6 +57,16 @@ def cost_of(input_tokens: int, output_tokens: int) -> float | None:
 def run(state) -> Generator[tuple[str, object], None, AskOutcome]:
     """Stream the graph. Yields ("trace"|"sources"|"reset"|"delta", payload)."""
     settings = get_settings()
+
+    # The provider switch lives HERE, not in the routes, for the same reason
+    # the graph loop does: one implementation, and both callers (the app's SSE
+    # route and /v1/ask) get it for free. `local` runs our own fine-tuned
+    # model over the same retrieval — see services/grounded.py.
+    if settings.LLM_PROVIDER == "local":
+        from app.services import grounded
+
+        return (yield from grounded.run(state))
+
     t_start = time.perf_counter()
 
     answer_parts: list[str] = []

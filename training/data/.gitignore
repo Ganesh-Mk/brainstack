@@ -1,0 +1,4 @@
+# The append-only resume log — it is just train.jsonl + val.jsonl before the
+# split, and it churns on every run. The split files ARE committed: they are
+# the artifact you can walk someone through.
+generated.jsonl
