@@ -40,6 +40,15 @@ instability."*
 3. **Colab notebook** (`training/finetune_colab.ipynb`) — Unsloth + QLoRA on
    `Qwen/Qwen2.5-3B-Instruct`, r=16, 2 epochs, `train_on_responses_only`, with a
    token-length check that runs *before* training rather than after.
+
+   ![Training loss vs held-out eval loss](assets/finetune-loss-curve.png)
+
+   234 steps, 33 minutes, 29.9M of 3.1B parameters trained (0.96%). Train loss
+   0.64 → 0.31; eval loss on the 80 held-out rows 0.561 → 0.471, still at its
+   lowest on the final step. Had the model been memorising the 1,010 examples
+   rather than learning the habit, the orange line would have turned upward
+   around epoch 2 — it didn't, which is why 2 epochs was kept. The blue line's
+   sawtooth is ordinary batch noise at an effective batch of 8.
 4. **Export** — merged → GGUF Q4_K_M (1.93 GB) → Ollama. `make_modelfile.py`
    generates the Modelfile from the live prompt for the same anti-drift reason.
 5. **Grounded mode** (`backend/app/services/grounded.py`) — the `LLM_PROVIDER

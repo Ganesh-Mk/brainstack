@@ -160,7 +160,12 @@ Two things in the notebook are worth understanding rather than just running:
 Watch `eval_loss` on the held-out `val.jsonl`. Falling with `loss` = learning.
 Rising while `loss` falls = memorising; drop to 1 epoch.
 
-**Output:** a ~60 MB LoRA adapter, plus a loss curve worth screenshotting.
+![Training loss vs held-out eval loss](../docs/assets/finetune-loss-curve.png)
+
+Our run: 234 steps, 33 min, train 0.64 → 0.31, eval 0.561 → 0.471 — lowest on
+the final step, so no overfitting and 2 epochs was right.
+
+**Output:** a ~60 MB LoRA adapter, plus the loss curve above.
 
 ---
 
